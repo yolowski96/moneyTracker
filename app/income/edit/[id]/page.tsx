@@ -1,0 +1,102 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { updateTag } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { TAG_INCOME_EVENTS } from "@/lib/cache-tags";
+import { ThemeToggle } from "../../../theme-toggle";
+import { IncomeEditForm } from "./form";
+
+export const dynamic = "force-dynamic";
+
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function EditIncomePage({ params }: PageProps) {
+  const { id } = await params;
+
+  const income = await prisma.incomeEvent.findUnique({ where: { id } });
+  if (!income) notFound();
+
+  async function save(formData: FormData) {
+    "use server";
+
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+
+    const amount = Number(formData.get("amount"));
+    const note = String(formData.get("note") ?? "").trim();
+    const occurredAtRaw = String(formData.get("occurredAt") ?? "").trim();
+
+    if (!Number.isFinite(amount) || amount <= 0) return;
+
+    const occurredAt = occurredAtRaw ? new Date(occurredAtRaw) : undefined;
+    if (occurredAt && Number.isNaN(occurredAt.getTime())) return;
+
+    await prisma.incomeEvent.update({
+      where: { id },
+      data: {
+        amount: Math.round(amount * 100),
+        note: note || null,
+        ...(occurredAt ? { occurredAt } : {}),
+      },
+    });
+
+    updateTag(TAG_INCOME_EVENTS);
+    redirect("/");
+  }
+
+  async function remove(formData: FormData) {
+    "use server";
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    await prisma.incomeEvent.delete({ where: { id } });
+    updateTag(TAG_INCOME_EVENTS);
+    redirect("/");
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
+      <header className="mb-10 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Edit extra income
+          </h1>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">
+            Added {income.createdAt.toLocaleString("en-IE")}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+          >
+            {"\u2190"} Cancel
+          </Link>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <IncomeEditForm
+        initial={{
+          id: income.id,
+          amount: (income.amount / 100).toFixed(2),
+          note: income.note ?? "",
+          occurredAt: toLocalInputValue(income.occurredAt),
+        }}
+        onSave={save}
+        onDelete={remove}
+      />
+    </main>
+  );
+}
+
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const h = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${y}-${m}-${day}T${h}:${mm}`;
+}

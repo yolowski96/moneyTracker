@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Transaction {
+  id         String   @id @default(cuid())
+  amount     Int
+  currency   String   @default("EUR")
+  merchant   String
+  category   String?
+  note       String?
+  source     String   @default("manual")
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([occurredAt])
+}
+
+model IncomeEvent {
+  id         String   @id @default(cuid())
+  amount     Int       // cents
+  currency   String   @default("EUR")
+  note       String?   // e.g. "Q1 bonus", "side project"
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([occurredAt])
+}
+
+model Settings {
+  id               Int      @id @default(1)
+  period           String   @default("month") // week | month | year
+  monthlyResetDay  Int      @default(1)        // 1-31 (clamped to last day of month)
+  weeklyResetDay   Int      @default(1)        // 0=Sun ... 6=Sat
+  yearlyResetMonth Int      @default(1)        // 1-12
+  yearlyResetDay   Int      @default(1)        // 1-31
+  incomeAmount     Int      @default(0)        // cents, per period
+  apiToken         String?                      // bearer token for /api/* (generated from UI)
+  updatedAt        DateTime @updatedAt
+}
