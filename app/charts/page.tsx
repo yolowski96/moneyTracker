@@ -491,8 +491,8 @@ export default async function ChartsPage({ searchParams }: PageProps) {
       </section>
 
       {/* Monthly trend chart */}
-      <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-        <div className="mb-4 flex items-baseline justify-between">
+      <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
             Trend {"\u00B7"} last {MONTHS_OF_HISTORY} months
           </div>
@@ -508,7 +508,7 @@ export default async function ChartsPage({ searchParams }: PageProps) {
           </div>
         </div>
 
-        <div className="flex h-48 items-end gap-2">
+        <div className="flex h-48 items-end gap-0.5 sm:gap-2">
           {monthRows.map((m) => {
             const spendH = (m.spend / maxMonth) * 100;
             const incomeH = (m.income / maxMonth) * 100;
@@ -519,14 +519,14 @@ export default async function ChartsPage({ searchParams }: PageProps) {
                 key={m.key}
                 href={m.key === currentMonthKey ? "/charts" : `/charts?month=${m.key}`}
                 className={
-                  "group flex flex-1 flex-col items-center rounded-md px-1 py-1 transition " +
+                  "group flex min-w-0 flex-1 flex-col items-center rounded-md px-0 py-1 transition sm:px-1 " +
                   (isSelected
                     ? "bg-[color:var(--border)]/50"
                     : "hover:bg-[color:var(--border)]/30")
                 }
                 title={`${m.label} \u2014 ${formatAmount(m.spend)} spend / ${formatAmount(m.income)} income`}
               >
-                <div className="relative flex h-full w-full items-end justify-center gap-1">
+                <div className="relative flex h-full w-full items-end justify-center gap-0.5 sm:gap-1">
                   <div
                     className="w-1/3 rounded-sm bg-[color:var(--foreground)]/70 transition group-hover:bg-[color:var(--foreground)]"
                     style={{ height: `${Math.max(spendH, 1)}%` }}
@@ -538,7 +538,7 @@ export default async function ChartsPage({ searchParams }: PageProps) {
                 </div>
                 <div
                   className={
-                    "mt-2 text-xs " +
+                    "mt-2 w-full truncate text-center text-[10px] sm:text-xs " +
                     (isCurrent ? "font-medium" : "text-[color:var(--muted)]")
                   }
                 >
