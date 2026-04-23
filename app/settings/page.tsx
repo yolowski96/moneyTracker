@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSettings, getCycleBounds, type Period } from "@/lib/cycle";
 import { generateApiToken } from "@/lib/auth";
 import { TAG_SETTINGS, TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import { log } from "@/lib/log";
 import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { ThemeToggle } from "../theme-toggle";
@@ -59,6 +60,15 @@ export default async function SettingsPage() {
       create: { id: 1, ...data },
     });
 
+    log("action.settings.save", 200, "saved", `period=${data.period}`, {
+      period: data.period,
+      incomeAmount: data.incomeAmount,
+      monthlyResetDay: data.monthlyResetDay,
+      weeklyResetDay: data.weeklyResetDay,
+      yearlyResetMonth: data.yearlyResetMonth,
+      yearlyResetDay: data.yearlyResetDay,
+    });
+
     // Settings changed, and since cycle bounds depend on settings the cached
     // cycle transactions are stale too — bust both tags.
     updateTag(TAG_SETTINGS);
@@ -69,10 +79,18 @@ export default async function SettingsPage() {
   async function regenerateApiToken() {
     "use server";
     const token = generateApiToken();
+    const previous = await prisma.settings.findUnique({
+      where: { id: 1 },
+      select: { apiToken: true },
+    });
     await prisma.settings.upsert({
       where: { id: 1 },
       update: { apiToken: token },
       create: { id: 1, apiToken: token },
+    });
+    log("action.settings.regenerateApiToken", 200, previous?.apiToken ? "rotated" : "generated", "api token updated", {
+      hadPrevious: !!previous?.apiToken,
+      tokenPreview: token.slice(0, 4) + "…" + token.slice(-4),
     });
     updateTag(TAG_SETTINGS);
   }
@@ -103,47 +121,58 @@ export default async function SettingsPage() {
         </div>
       </header>
 
-      <section aria-labelledby="cycle-heading" className="space-y-6">
-        <div>
-          <h2
-            id="cycle-heading"
-            className="text-xs uppercase tracking-widest text-[color:var(--muted)]"
-          >
-            Cycle {"\u00B7"} income
-          </h2>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            How often your budget resets and what you bring in per period.
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-sm">
-          <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            Current cycle
+      <div className="divide-y divide-[color:var(--border)] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+                Cycle {"\u00B7"} income
+              </div>
+              <div className="mt-0.5 text-[color:var(--muted)]">
+                {cycle.label}
+              </div>
+            </div>
+            <span
+              aria-hidden
+              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+            >
+              {"\u203A"}
+            </span>
+          </summary>
+          <div className="space-y-6 border-t border-[color:var(--border)] px-4 py-4">
+            <p className="text-sm text-[color:var(--muted)]">
+              How often your budget resets and what you bring in per period.
+            </p>
+            <SettingsForm initial={settings} action={save} />
           </div>
-          <div className="mt-1">{cycle.label}</div>
-        </div>
+        </details>
 
-        <SettingsForm initial={settings} action={save} />
-      </section>
-
-      <hr className="my-12 border-[color:var(--border)]" />
-
-      <section aria-labelledby="api-heading" className="space-y-4">
-        <div>
-          <h2
-            id="api-heading"
-            className="text-xs uppercase tracking-widest text-[color:var(--muted)]"
-          >
-            API access
-          </h2>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Authenticate iOS Shortcuts and other clients posting to{" "}
-            <code className="font-mono text-xs">/api/transactions</code>.
-          </p>
-        </div>
-
-        <ApiKeyCard token={settings.apiToken} action={regenerateApiToken} />
-      </section>
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+                API access
+              </div>
+              <div className="mt-0.5 text-[color:var(--muted)]">
+                {settings.apiToken ? "Key configured" : "No key yet"}
+              </div>
+            </div>
+            <span
+              aria-hidden
+              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+            >
+              {"\u203A"}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+            <p className="text-sm text-[color:var(--muted)]">
+              Authenticate iOS Shortcuts and other clients posting to{" "}
+              <code className="font-mono text-xs">/api/transactions</code>.
+            </p>
+            <ApiKeyCard token={settings.apiToken} action={regenerateApiToken} />
+          </div>
+        </details>
+      </div>
     </main>
   );
 }

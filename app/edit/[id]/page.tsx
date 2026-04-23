@@ -4,6 +4,7 @@ import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/categories";
 import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import { log } from "@/lib/log";
 import { ThemeToggle } from "../../theme-toggle";
 import { EditForm } from "./form";
 
@@ -26,7 +27,10 @@ export default async function EditPage({ params, searchParams }: PageProps) {
     "use server";
 
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
+    if (!id) {
+      log("action.edit.save", 400, "missing_id", "no id in form");
+      return;
+    }
 
     const amount = Number(formData.get("amount"));
     const merchant = String(formData.get("merchant") ?? "").trim();
@@ -35,13 +39,26 @@ export default async function EditPage({ params, searchParams }: PageProps) {
     const occurredAtRaw = String(formData.get("occurredAt") ?? "").trim();
     const returnToRaw = String(formData.get("returnTo") ?? "/");
 
-    if (!Number.isFinite(amount) || amount <= 0 || !merchant) return;
+    if (!Number.isFinite(amount) || amount <= 0 || !merchant) {
+      log("action.edit.save", 400, "invalid_input", "amount or merchant invalid", {
+        id,
+        amountRaw: formData.get("amount"),
+        merchantLen: merchant.length,
+      });
+      return;
+    }
 
     const categoryValid = CATEGORIES.some((c) => c.id === category);
     const occurredAt = occurredAtRaw
       ? new Date(occurredAtRaw)
       : undefined;
-    if (occurredAt && Number.isNaN(occurredAt.getTime())) return;
+    if (occurredAt && Number.isNaN(occurredAt.getTime())) {
+      log("action.edit.save", 400, "invalid_occurred_at", "unparseable datetime-local value", {
+        id,
+        occurredAtRaw,
+      });
+      return;
+    }
 
     await prisma.transaction.update({
       where: { id },
@@ -54,6 +71,14 @@ export default async function EditPage({ params, searchParams }: PageProps) {
       },
     });
 
+    log("action.edit.save", 200, "updated", `transaction ${id}`, {
+      id,
+      merchant,
+      category: categoryValid ? category : null,
+      amount: Math.round(amount * 100),
+      returnTo: returnToRaw,
+    });
+
     updateTag(TAG_TRANSACTIONS);
     redirect(returnToRaw === "/inbox" ? "/inbox" : "/");
   }
@@ -62,8 +87,15 @@ export default async function EditPage({ params, searchParams }: PageProps) {
     "use server";
     const id = String(formData.get("id") ?? "");
     const returnToRaw = String(formData.get("returnTo") ?? "/");
-    if (!id) return;
+    if (!id) {
+      log("action.edit.remove", 400, "missing_id", "no id in form");
+      return;
+    }
     await prisma.transaction.delete({ where: { id } });
+    log("action.edit.remove", 200, "deleted", `transaction ${id}`, {
+      id,
+      returnTo: returnToRaw,
+    });
     updateTag(TAG_TRANSACTIONS);
     redirect(returnToRaw === "/inbox" ? "/inbox" : "/");
   }

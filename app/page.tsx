@@ -8,6 +8,7 @@ import { AddIncomeForm } from "./add-income-form";
 import { ThemeToggle } from "./theme-toggle";
 import { updateTag } from "next/cache";
 import { TAG_TRANSACTIONS, TAG_INCOME_EVENTS } from "@/lib/cache-tags";
+import { log } from "@/lib/log";
 import {
   getCycleIncomeEvents,
   getCycleTransactions,
@@ -83,8 +84,14 @@ export default async function Home() {
     const amount = Number(formData.get("amount"));
     const merchant = String(formData.get("merchant") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
-    if (!Number.isFinite(amount) || amount <= 0 || !merchant) return;
-    await prisma.transaction.create({
+    if (!Number.isFinite(amount) || amount <= 0 || !merchant) {
+      log("action.addTransaction", 400, "invalid_input", "rejected form submission", {
+        amountRaw: formData.get("amount"),
+        merchantLen: merchant.length,
+      });
+      return;
+    }
+    const row = await prisma.transaction.create({
       data: {
         amount: Math.round(amount * 100),
         merchant,
@@ -92,14 +99,24 @@ export default async function Home() {
         source: "web",
       },
     });
+    log("action.addTransaction", 201, "created", `transaction ${row.id}`, {
+      id: row.id,
+      amount: row.amount,
+      merchant: row.merchant,
+      category: row.category,
+    });
     updateTag(TAG_TRANSACTIONS);
   }
 
   async function deleteTransaction(formData: FormData) {
     "use server";
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
+    if (!id) {
+      log("action.deleteTransaction", 400, "missing_id", "no id in form");
+      return;
+    }
     await prisma.transaction.delete({ where: { id } });
+    log("action.deleteTransaction", 200, "deleted", `transaction ${id}`, { id });
     updateTag(TAG_TRANSACTIONS);
   }
 
@@ -107,12 +124,22 @@ export default async function Home() {
     "use server";
     const amount = Number(formData.get("amount"));
     const note = String(formData.get("note") ?? "").trim();
-    if (!Number.isFinite(amount) || amount <= 0) return;
-    await prisma.incomeEvent.create({
+    if (!Number.isFinite(amount) || amount <= 0) {
+      log("action.addIncomeEvent", 400, "invalid_amount", "rejected form submission", {
+        amountRaw: formData.get("amount"),
+      });
+      return;
+    }
+    const row = await prisma.incomeEvent.create({
       data: {
         amount: Math.round(amount * 100),
         note: note || null,
       },
+    });
+    log("action.addIncomeEvent", 201, "created", `income event ${row.id}`, {
+      id: row.id,
+      amount: row.amount,
+      note: row.note,
     });
     updateTag(TAG_INCOME_EVENTS);
   }
@@ -120,8 +147,12 @@ export default async function Home() {
   async function deleteIncomeEvent(formData: FormData) {
     "use server";
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
+    if (!id) {
+      log("action.deleteIncomeEvent", 400, "missing_id", "no id in form");
+      return;
+    }
     await prisma.incomeEvent.delete({ where: { id } });
+    log("action.deleteIncomeEvent", 200, "deleted", `income event ${id}`, { id });
     updateTag(TAG_INCOME_EVENTS);
   }
 
