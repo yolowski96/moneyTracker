@@ -10,8 +10,6 @@ import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { ThemeToggle } from "../theme-toggle";
 
-export const dynamic = "force-dynamic";
-
 export default async function SettingsPage() {
   const settings = await getSettings();
   const cycle = getCycleBounds(settings);

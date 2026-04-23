@@ -12,8 +12,6 @@ import {
 import { log } from "@/lib/log";
 import { ThemeToggle } from "../theme-toggle";
 
-export const dynamic = "force-dynamic";
-
 const MONTHS_OF_HISTORY = 12;
 
 type SearchParams = { month?: string };

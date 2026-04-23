@@ -9,8 +9,6 @@ import { getPendingTransactions } from "@/lib/queries";
 import { ThemeToggle } from "../theme-toggle";
 import { PendingRow } from "./pending-row";
 
-export const dynamic = "force-dynamic";
-
 function formatDate(d: Date) {
   return d.toLocaleString("en-IE", {
     weekday: "short",

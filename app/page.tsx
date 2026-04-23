@@ -16,8 +16,6 @@ import {
   getRecentTransactions,
 } from "@/lib/queries";
 
-export const dynamic = "force-dynamic";
-
 function groupByDay<T extends { occurredAt: Date }>(items: T[]) {
   const map = new Map<string, T[]>();
   for (const item of items) {
