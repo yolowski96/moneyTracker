@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { TAG_INCOME_EVENTS } from "@/lib/cache-tags";
+import { log } from "@/lib/log";
 import { ThemeToggle } from "../../../theme-toggle";
 import { IncomeEditForm } from "./form";
 
@@ -22,16 +23,31 @@ export default async function EditIncomePage({ params }: PageProps) {
     "use server";
 
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
+    if (!id) {
+      log("action.income.edit.save", 400, "missing_id", "no id in form");
+      return;
+    }
 
     const amount = Number(formData.get("amount"));
     const note = String(formData.get("note") ?? "").trim();
     const occurredAtRaw = String(formData.get("occurredAt") ?? "").trim();
 
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      log("action.income.edit.save", 400, "invalid_amount", "amount must be a positive finite number", {
+        id,
+        amountRaw: formData.get("amount"),
+      });
+      return;
+    }
 
     const occurredAt = occurredAtRaw ? new Date(occurredAtRaw) : undefined;
-    if (occurredAt && Number.isNaN(occurredAt.getTime())) return;
+    if (occurredAt && Number.isNaN(occurredAt.getTime())) {
+      log("action.income.edit.save", 400, "invalid_occurred_at", "unparseable datetime-local value", {
+        id,
+        occurredAtRaw,
+      });
+      return;
+    }
 
     await prisma.incomeEvent.update({
       where: { id },
@@ -42,6 +58,12 @@ export default async function EditIncomePage({ params }: PageProps) {
       },
     });
 
+    log("action.income.edit.save", 200, "updated", `income event ${id}`, {
+      id,
+      amount: Math.round(amount * 100),
+      note: note || null,
+    });
+
     updateTag(TAG_INCOME_EVENTS);
     redirect("/");
   }
@@ -49,8 +71,12 @@ export default async function EditIncomePage({ params }: PageProps) {
   async function remove(formData: FormData) {
     "use server";
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
+    if (!id) {
+      log("action.income.edit.remove", 400, "missing_id", "no id in form");
+      return;
+    }
     await prisma.incomeEvent.delete({ where: { id } });
+    log("action.income.edit.remove", 200, "deleted", `income event ${id}`, { id });
     updateTag(TAG_INCOME_EVENTS);
     redirect("/");
   }

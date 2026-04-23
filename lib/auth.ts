@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { timingSafeEqual, randomBytes } from "crypto";
 import { prisma } from "./prisma";
+import { log } from "./log";
 
 function bearer(req: NextRequest): string | null {
   const header = req.headers.get("authorization") ?? "";
@@ -19,7 +20,13 @@ function safeEqual(a: string, b: string): boolean {
 // env API_TOKEN for backward compatibility with existing Shortcuts.
 export async function isAuthorized(req: NextRequest): Promise<boolean> {
   const presented = bearer(req);
-  if (!presented) return false;
+  if (!presented) {
+    log("auth", null, "no_bearer", "no bearer token on request", {
+      hasAuthHeader: !!req.headers.get("authorization"),
+      path: req.nextUrl.pathname,
+    });
+    return false;
+  }
 
   const settings = await prisma.settings.findUnique({
     where: { id: 1 },
@@ -30,8 +37,18 @@ export async function isAuthorized(req: NextRequest): Promise<boolean> {
   }
 
   const envToken = process.env.API_TOKEN;
-  if (envToken && safeEqual(presented, envToken)) return true;
+  if (envToken && safeEqual(presented, envToken)) {
+    log("auth", null, "env_fallback", "authed via API_TOKEN env fallback", {
+      path: req.nextUrl.pathname,
+    });
+    return true;
+  }
 
+  log("auth", null, "bad_bearer", "presented token did not match", {
+    path: req.nextUrl.pathname,
+    hasSettingsToken: !!settings?.apiToken,
+    hasEnvToken: !!envToken,
+  });
   return false;
 }
 

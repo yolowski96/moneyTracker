@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatAmount } from "@/lib/money";
 import { CATEGORIES } from "@/lib/categories";
 import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import { log } from "@/lib/log";
 import { getPendingTransactions } from "@/lib/queries";
 import { ThemeToggle } from "../theme-toggle";
 import { PendingRow } from "./pending-row";
@@ -27,11 +28,27 @@ export default async function InboxPage() {
     "use server";
     const id = String(formData.get("id") ?? "");
     const categoryId = String(formData.get("categoryId") ?? "");
-    if (!id || !categoryId) return;
-    if (!CATEGORIES.some((c) => c.id === categoryId)) return;
+    if (!id || !categoryId) {
+      log("action.inbox.setCategory", 400, "missing_input", "id or categoryId missing", {
+        hasId: !!id,
+        hasCategoryId: !!categoryId,
+      });
+      return;
+    }
+    if (!CATEGORIES.some((c) => c.id === categoryId)) {
+      log("action.inbox.setCategory", 400, "unknown_category", `${categoryId} is not a known category`, {
+        categoryId,
+        id,
+      });
+      return;
+    }
     await prisma.transaction.update({
       where: { id },
       data: { category: categoryId },
+    });
+    log("action.inbox.setCategory", 200, "categorized", `transaction ${id} -> ${categoryId}`, {
+      id,
+      categoryId,
     });
     updateTag(TAG_TRANSACTIONS);
   }
@@ -39,8 +56,12 @@ export default async function InboxPage() {
   async function deletePending(formData: FormData) {
     "use server";
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
+    if (!id) {
+      log("action.inbox.deletePending", 400, "missing_id", "no id in form");
+      return;
+    }
     await prisma.transaction.delete({ where: { id } });
+    log("action.inbox.deletePending", 200, "deleted", `transaction ${id}`, { id });
     updateTag(TAG_TRANSACTIONS);
   }
 
