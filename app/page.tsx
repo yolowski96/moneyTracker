@@ -331,7 +331,7 @@ export default async function Home() {
                     <Link
                       href={`/income/edit/${e.id}`}
                       aria-label="Edit"
-                      className="text-[color:var(--muted)] opacity-0 transition hover:text-[color:var(--foreground)] group-hover:opacity-100"
+                      className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       {"\u270E"}
                     </Link>
@@ -340,7 +340,7 @@ export default async function Home() {
                       <button
                         type="submit"
                         aria-label="Remove"
-                        className="text-[color:var(--muted)] opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+                        className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         &times;
                       </button>
@@ -433,7 +433,7 @@ export default async function Home() {
                         <Link
                           href={`/edit/${t.id}`}
                           aria-label="Edit"
-                          className="text-[color:var(--muted)] opacity-0 transition hover:text-[color:var(--foreground)] group-hover:opacity-100"
+                          className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           {"\u270E"}
                         </Link>
@@ -442,7 +442,7 @@ export default async function Home() {
                           <button
                             type="submit"
                             aria-label="Delete"
-                            className="text-[color:var(--muted)] opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+                            className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
                           >
                             &times;
                           </button>
