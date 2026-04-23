@@ -147,6 +147,12 @@ export default async function Home() {
             )}
           </Link>
           <Link
+            href="/charts"
+            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+          >
+            Charts
+          </Link>
+          <Link
             href="/settings"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >

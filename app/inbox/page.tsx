@@ -53,14 +53,20 @@ export default async function InboxPage() {
             Uncategorized transactions. Tap a category to file each one.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/charts"
+            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+          >
+            Charts
+          </Link>
           <Link
             href="/"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
             {"\u2190"} Back
           </Link>
+          <ThemeToggle />
         </div>
       </header>
 

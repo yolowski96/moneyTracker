@@ -94,6 +94,12 @@ export default async function SettingsPage() {
             Inbox
           </Link>
           <Link
+            href="/charts"
+            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+          >
+            Charts
+          </Link>
+          <Link
             href="/"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
