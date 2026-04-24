@@ -1,37 +1,48 @@
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { prisma } from "./prisma";
+import { TAG_CATEGORIES } from "./cache-tags";
+
 export type Category = {
   id: string;
   label: string;
   emoji: string;
+  position: number;
+  archived: boolean;
 };
 
-export const CATEGORIES: Category[] = [
-  { id: "food", label: "Food", emoji: "\u{1F35C}" },
-  { id: "groceries", label: "Groceries", emoji: "\u{1F6D2}" },
-  { id: "coffee", label: "Coffee", emoji: "\u2615" },
-  { id: "transport", label: "Transport", emoji: "\u{1F695}" },
-  { id: "fuel", label: "Fuel", emoji: "\u26FD" },
-  { id: "rent", label: "Rent", emoji: "\u{1F3E0}" },
-  { id: "utilities", label: "Utilities", emoji: "\u{1F4A1}" },
-  { id: "entertainment", label: "Fun", emoji: "\u{1F3AC}" },
-  { id: "clothes", label: "Clothes", emoji: "\u{1F455}" },
-  { id: "health", label: "Health", emoji: "\u{1FA7A}" },
-  { id: "travel", label: "Travel", emoji: "\u2708\uFE0F" },
-  { id: "gifts", label: "Gifts", emoji: "\u{1F381}" },
-  { id: "education", label: "Education", emoji: "\u{1F4DA}" },
-  { id: "subscriptions", label: "Subs", emoji: "\u{1F9FE}" },
-  { id: "drinks", label: "Drinks", emoji: "\u{1F37B}" },
-  { id: "other", label: "Other", emoji: "\u{1F4E6}" },
-];
+const getAllCategoriesCached = unstable_cache(
+  async (): Promise<Category[]> => {
+    const rows = await prisma.category.findMany({
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      label: r.label,
+      emoji: r.emoji,
+      position: r.position,
+      archived: r.archived,
+    }));
+  },
+  ["categories:all:v1"],
+  { tags: [TAG_CATEGORIES] },
+);
 
-const BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
+export const getAllCategories = cache(async (): Promise<Category[]> => {
+  return getAllCategoriesCached();
+});
 
-export function getCategory(id: string | null | undefined): Category | null {
+export const getActiveCategories = cache(async (): Promise<Category[]> => {
+  const all = await getAllCategoriesCached();
+  return all.filter((c) => !c.archived);
+});
+
+// Lookup-by-id helper. Falls back to stored id if category was deleted/archived
+// after a transaction was filed under it.
+export async function getCategory(
+  id: string | null | undefined,
+): Promise<Category | null> {
   if (!id) return null;
-  return BY_ID.get(id) ?? null;
-}
-
-export function formatCategoryLabel(id: string | null | undefined): string {
-  const c = getCategory(id);
-  if (!c) return id ?? "";
-  return `${c.emoji} ${c.label}`;
+  const all = await getAllCategoriesCached();
+  return all.find((c) => c.id === id) ?? null;
 }

@@ -42,5 +42,18 @@ model Settings {
   yearlyResetDay   Int      @default(1)        // 1-31
   incomeAmount     Int      @default(0)        // cents, per period
   apiToken         String?                      // bearer token for /api/* (generated from UI)
+  locale           String   @default("en")     // en | bg
+  currency         String   @default("EUR")    // EUR | USD | GBP
   updatedAt        DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  label     String
+  emoji     String
+  position  Int      @default(0)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([archived, position])
 }

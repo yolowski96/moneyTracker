@@ -1,36 +1,57 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { type Period, type Settings, periodAdjective } from "@/lib/cycle";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-const PERIODS: { id: Period; label: string; hint: string }[] = [
-  { id: "week", label: "Week", hint: "Resets on the same weekday" },
-  { id: "month", label: "Month", hint: "Resets on your salary day" },
-  { id: "year", label: "Year", hint: "Resets on a specific date" },
-];
+import { type Period, type Settings } from "@/lib/cycle";
+import { type Locale } from "@/lib/i18n";
 
 type Props = {
   initial: Settings;
+  currencySymbol: string;
+  locales: { id: Locale; label: string }[];
+  currencies: readonly string[];
+  weekdayLabels: string[];
+  monthLabels: string[];
+  periodAdjective: string;
+  labels: {
+    trackBy: string;
+    week: string;
+    month: string;
+    year: string;
+    weekHint: string;
+    monthHint: string;
+    yearHint: string;
+    periodIncome: string;
+    incomeDescription: string;
+    resetDay: string;
+    salaryResetDay: string;
+    salaryResetHint: string;
+    resetMonth: string;
+    language: string;
+    currency: string;
+    save: string;
+    saving: string;
+    resetNote: string;
+  };
   action: (formData: FormData) => Promise<void>;
 };
 
-export function SettingsForm({ initial, action }: Props) {
+export function SettingsForm({
+  initial,
+  currencySymbol,
+  locales,
+  currencies,
+  weekdayLabels,
+  monthLabels,
+  periodAdjective,
+  labels,
+  action,
+}: Props) {
+  const PERIODS: { id: Period; label: string; hint: string }[] = [
+    { id: "week", label: labels.week, hint: labels.weekHint },
+    { id: "month", label: labels.month, hint: labels.monthHint },
+    { id: "year", label: labels.year, hint: labels.yearHint },
+  ];
+
   const [period, setPeriod] = useState<Period>(initial.period);
   const [monthlyResetDay, setMonthlyResetDay] = useState(initial.monthlyResetDay);
   const [weeklyResetDay, setWeeklyResetDay] = useState(initial.weeklyResetDay);
@@ -39,6 +60,8 @@ export function SettingsForm({ initial, action }: Props) {
   const [income, setIncome] = useState(
     initial.incomeAmount ? (initial.incomeAmount / 100).toFixed(2) : "",
   );
+  const [locale, setLocale] = useState<Locale>(initial.locale);
+  const [currency, setCurrency] = useState<string>(initial.currency);
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -52,10 +75,64 @@ export function SettingsForm({ initial, action }: Props) {
       <input type="hidden" name="yearlyResetMonth" value={yearlyResetMonth} />
       <input type="hidden" name="yearlyResetDay" value={yearlyResetDay} />
       <input type="hidden" name="incomeAmount" value={income} />
+      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="currency" value={currency} />
 
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          Track by
+          {labels.language}
+        </label>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {locales.map((l) => {
+            const active = locale === l.id;
+            return (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => setLocale(l.id)}
+                className={
+                  "rounded-lg border p-3 text-left text-sm transition " +
+                  (active
+                    ? "border-[color:var(--foreground)] bg-[color:var(--foreground)] text-[color:var(--background)]"
+                    : "border-[color:var(--border)] hover:bg-[color:var(--surface)]")
+                }
+              >
+                {l.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+          {labels.currency}
+        </label>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {currencies.map((c) => {
+            const active = currency === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCurrency(c)}
+                className={
+                  "rounded-lg border p-3 text-center text-sm font-mono transition " +
+                  (active
+                    ? "border-[color:var(--foreground)] bg-[color:var(--foreground)] text-[color:var(--background)]"
+                    : "border-[color:var(--border)] hover:bg-[color:var(--surface)]")
+                }
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+          {labels.trackBy}
         </label>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {PERIODS.map((p) => {
@@ -91,14 +168,14 @@ export function SettingsForm({ initial, action }: Props) {
 
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          {periodAdjective(period)} income
+          {periodAdjective} {labels.periodIncome}
         </label>
         <p className="mt-1 text-xs text-[color:var(--muted)]">
-          Your take-home per {period}. Used to compute what{"\u2019"}s left.
+          {labels.incomeDescription.replace("{p}", period)}
         </p>
         <div className="mt-2 flex items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] p-2 focus-within:border-[color:var(--foreground)]/30">
           <span className="pl-1 text-sm text-[color:var(--muted)]">
-            {"\u20AC"}
+            {currencySymbol}
           </span>
           <input
             type="number"
@@ -116,14 +193,14 @@ export function SettingsForm({ initial, action }: Props) {
       {period === "week" && (
         <section>
           <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            Reset day
+            {labels.resetDay}
           </label>
           <div className="mt-2 grid grid-cols-7 gap-1">
-            {WEEKDAYS.map((d, i) => {
+            {weekdayLabels.map((d, i) => {
               const active = weeklyResetDay === i;
               return (
                 <button
-                  key={d}
+                  key={i}
                   type="button"
                   onClick={() => setWeeklyResetDay(i)}
                   className={
@@ -144,11 +221,10 @@ export function SettingsForm({ initial, action }: Props) {
       {period === "month" && (
         <section>
           <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            Salary / reset day
+            {labels.salaryResetDay}
           </label>
           <p className="mt-1 text-xs text-[color:var(--muted)]">
-            Pick the day of the month you get paid. If the month is shorter (e.g.
-            the 31st in February), it falls on the last day.
+            {labels.salaryResetHint}
           </p>
           <div className="mt-3 grid grid-cols-7 gap-1">
             {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => {
@@ -177,14 +253,14 @@ export function SettingsForm({ initial, action }: Props) {
         <section className="space-y-4">
           <div>
             <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-              Reset month
+              {labels.resetMonth}
             </label>
             <div className="mt-2 grid grid-cols-6 gap-1">
-              {MONTHS.map((m, i) => {
+              {monthLabels.map((m, i) => {
                 const active = yearlyResetMonth === i + 1;
                 return (
                   <button
-                    key={m}
+                    key={i}
                     type="button"
                     onClick={() => setYearlyResetMonth(i + 1)}
                     className={
@@ -203,7 +279,7 @@ export function SettingsForm({ initial, action }: Props) {
 
           <div>
             <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-              Reset day
+              {labels.resetDay}
             </label>
             <div className="mt-2 grid grid-cols-7 gap-1">
               {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => {
@@ -235,10 +311,10 @@ export function SettingsForm({ initial, action }: Props) {
           disabled={isPending}
           className="rounded-md bg-[color:var(--foreground)] px-4 py-2 text-sm font-medium text-[color:var(--background)] disabled:opacity-50"
         >
-          {isPending ? "Saving\u2026" : "Save"}
+          {isPending ? `${labels.saving}\u2026` : labels.save}
         </button>
         <span className="text-xs text-[color:var(--muted)]">
-          {"Your transactions aren\u2019t deleted on reset \u2014 totals just restart."}
+          {labels.resetNote}
         </span>
       </div>
     </form>

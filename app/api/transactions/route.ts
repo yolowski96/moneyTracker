@@ -5,6 +5,7 @@ import { isAuthorized } from "@/lib/auth";
 import { toCents } from "@/lib/money";
 import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
+import { getSettings } from "@/lib/cycle";
 
 export const dynamic = "force-dynamic";
 
@@ -116,11 +117,13 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const settings = await getSettings();
+
   try {
     const transaction = await prisma.transaction.create({
       data: {
         amount: cents,
-        currency: (body.currency as string) ?? "EUR",
+        currency: (body.currency as string) ?? settings.currency,
         merchant: merchantStr,
         category: body.category ? String(body.category).trim() : null,
         note: body.note ? String(body.note).trim() : null,

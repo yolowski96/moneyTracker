@@ -2,9 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { CATEGORIES } from "@/lib/categories";
+import { getActiveCategories } from "@/lib/categories";
 import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
+import { getSettings } from "@/lib/cycle";
+import { t } from "@/lib/i18n";
+import { currencySymbol } from "@/lib/format";
 import { ThemeToggle } from "../../theme-toggle";
 import { EditForm } from "./form";
 
@@ -20,8 +23,13 @@ export default async function EditPage({ params, searchParams }: PageProps) {
   const { from } = await searchParams;
   const returnTo = from === "inbox" ? "/inbox" : "/";
 
-  const transaction = await prisma.transaction.findUnique({ where: { id } });
+  const [transaction, settings, categories] = await Promise.all([
+    prisma.transaction.findUnique({ where: { id } }),
+    getSettings(),
+    getActiveCategories(),
+  ]);
   if (!transaction) notFound();
+  const locale = settings.locale;
 
   async function save(formData: FormData) {
     "use server";
@@ -48,7 +56,11 @@ export default async function EditPage({ params, searchParams }: PageProps) {
       return;
     }
 
-    const categoryValid = CATEGORIES.some((c) => c.id === category);
+    let categoryValid = false;
+    if (category) {
+      const cat = await prisma.category.findUnique({ where: { id: category } });
+      categoryValid = !!cat;
+    }
     const occurredAt = occurredAtRaw
       ? new Date(occurredAtRaw)
       : undefined;
@@ -105,10 +117,10 @@ export default async function EditPage({ params, searchParams }: PageProps) {
       <header className="mb-10 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Edit transaction
+            {t(locale, "editTransaction")}
           </h1>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Created {transaction.createdAt.toLocaleString("en-IE")}
+            {t(locale, "created")} {transaction.createdAt.toLocaleString("en-IE")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -116,7 +128,7 @@ export default async function EditPage({ params, searchParams }: PageProps) {
             href={returnTo}
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            {"\u2190"} Cancel
+            {"\u2190"} {t(locale, "cancel")}
           </Link>
           <ThemeToggle />
         </div>
@@ -132,7 +144,21 @@ export default async function EditPage({ params, searchParams }: PageProps) {
           occurredAt: toLocalInputValue(transaction.occurredAt),
         }}
         returnTo={returnTo}
-        categories={CATEGORIES}
+        categories={categories}
+        currencySymbol={currencySymbol(locale, transaction.currency)}
+        labels={{
+          amount: t(locale, "amountPlaceholder"),
+          merchant: t(locale, "merchantPlaceholder"),
+          category: t(locale, "categories"),
+          none: t(locale, "categoryNone").replace("— ", ""),
+          note: t(locale, "notePlaceholder").replace(" (по избор)", "").replace(" (optional)", ""),
+          noteOptional: t(locale, "notePlaceholder"),
+          date: t(locale, "when"),
+          delete: t(locale, "delete"),
+          save: t(locale, "save"),
+          saving: t(locale, "save"),
+          confirmDelete: t(locale, "delete") + "?",
+        }}
         onSave={save}
         onDelete={remove}
       />

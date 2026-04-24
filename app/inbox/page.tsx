@@ -1,26 +1,23 @@
 import Link from "next/link";
 import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { formatAmount } from "@/lib/money";
-import { CATEGORIES } from "@/lib/categories";
+import { formatAmount, formatDateTime } from "@/lib/format";
+import { getActiveCategories } from "@/lib/categories";
 import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { getPendingTransactions } from "@/lib/queries";
+import { getSettings } from "@/lib/cycle";
+import { t } from "@/lib/i18n";
 import { ThemeToggle } from "../theme-toggle";
 import { PendingRow } from "./pending-row";
 
-function formatDate(d: Date) {
-  return d.toLocaleString("en-IE", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default async function InboxPage() {
-  const pending = await getPendingTransactions();
+  const [pending, settings, categories] = await Promise.all([
+    getPendingTransactions(),
+    getSettings(),
+    getActiveCategories(),
+  ]);
+  const locale = settings.locale;
 
   async function setCategory(formData: FormData) {
     "use server";
@@ -33,7 +30,8 @@ export default async function InboxPage() {
       });
       return;
     }
-    if (!CATEGORIES.some((c) => c.id === categoryId)) {
+    const cat = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!cat) {
       log("action.inbox.setCategory", 400, "unknown_category", `${categoryId} is not a known category`, {
         categoryId,
         id,
@@ -67,9 +65,9 @@ export default async function InboxPage() {
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
       <header className="mb-10 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "inbox")}</h1>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Uncategorized transactions. Tap a category to file each one.
+            {t(locale, "inboxTagline")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -77,13 +75,19 @@ export default async function InboxPage() {
             href="/charts"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            Charts
+            {t(locale, "charts")}
+          </Link>
+          <Link
+            href="/settings"
+            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+          >
+            {t(locale, "settings")}
           </Link>
           <Link
             href="/"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            {"\u2190"} Back
+            {"\u2190"} {t(locale, "back")}
           </Link>
           <ThemeToggle />
         </div>
@@ -91,26 +95,26 @@ export default async function InboxPage() {
 
       {pending.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[color:var(--border)] p-10 text-center text-sm text-[color:var(--muted)]">
-          Inbox zero. {"\u{1F389}"}
+          {t(locale, "inboxZero")} {"\u{1F389}"}
           <div className="mt-2 text-xs">
-            New transactions from your Shortcut appear here until you assign a
-            category.
+            {t(locale, "inboxZeroHint")}
           </div>
         </div>
       ) : (
         <ul className="space-y-3">
-          {pending.map((t) => (
+          {pending.map((tx) => (
             <PendingRow
-              key={t.id}
+              key={tx.id}
               transaction={{
-                id: t.id,
-                merchant: t.merchant,
-                amount: formatAmount(t.amount, t.currency),
-                note: t.note,
-                source: t.source,
-                occurredAtLabel: formatDate(t.occurredAt),
+                id: tx.id,
+                merchant: tx.merchant,
+                amount: formatAmount(tx.amount, locale, tx.currency),
+                note: tx.note,
+                source: tx.source,
+                occurredAtLabel: formatDateTime(tx.occurredAt, locale),
               }}
-              categories={CATEGORIES}
+              categories={categories}
+              labels={{ edit: t(locale, "edit"), dismiss: t(locale, "remove") }}
               onCategorize={setCategory}
               onDelete={deletePending}
             />

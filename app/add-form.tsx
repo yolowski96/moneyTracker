@@ -1,13 +1,19 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { CATEGORIES } from "@/lib/categories";
+import type { Category } from "@/lib/categories";
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
+  categories: Category[];
+  labels: {
+    merchant: string;
+    add: string;
+    adding: string;
+  };
 };
 
-export function AddTransactionForm({ action }: Props) {
+export function AddTransactionForm({ action, categories, labels }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
   const [categoryId, setCategoryId] = useState<string>("");
@@ -44,7 +50,7 @@ export function AddTransactionForm({ action }: Props) {
           name="merchant"
           type="text"
           required
-          placeholder="Merchant"
+          placeholder={labels.merchant}
           className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1 text-sm outline-none"
         />
         <input type="hidden" name="category" value={categoryId} />
@@ -53,11 +59,11 @@ export function AddTransactionForm({ action }: Props) {
           disabled={isPending}
           className="rounded-md bg-[color:var(--foreground)] px-3 py-1 text-xs font-medium text-[color:var(--background)] disabled:opacity-50"
         >
-          {isPending ? "Adding\u2026" : "Add"}
+          {isPending ? `${labels.adding}\u2026` : labels.add}
         </button>
       </div>
       <div className="mt-2 flex flex-wrap gap-1 border-t border-[color:var(--border)] pt-2">
-        {CATEGORIES.map((c) => {
+        {categories.map((c) => {
           const active = categoryId === c.id;
           return (
             <button

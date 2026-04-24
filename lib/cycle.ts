@@ -2,6 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { TAG_SETTINGS } from "./cache-tags";
+import type { Locale, Currency } from "./i18n";
 
 export type Period = "week" | "month" | "year";
 
@@ -14,6 +15,8 @@ const DEFAULT_SETTINGS: Settings = {
   yearlyResetDay: 1,
   incomeAmount: 0,
   apiToken: null,
+  locale: "en",
+  currency: "EUR",
 };
 
 export type Settings = {
@@ -25,6 +28,8 @@ export type Settings = {
   yearlyResetDay: number;
   incomeAmount: number; // cents
   apiToken: string | null;
+  locale: Locale;
+  currency: Currency | string;
 };
 
 export type CycleBounds = {
@@ -90,6 +95,8 @@ const getSettingsCached = unstable_cache(
       yearlyResetDay: row.yearlyResetDay,
       incomeAmount: row.incomeAmount,
       apiToken: row.apiToken,
+      locale: (row.locale as Locale) ?? "en",
+      currency: row.currency ?? "EUR",
     };
   },
   ["settings:v1"],
@@ -110,8 +117,34 @@ export async function ensureSettings(): Promise<void> {
   });
 }
 
+const WEEKDAYS_BG = [
+  "неделя",
+  "понеделник",
+  "вторник",
+  "сряда",
+  "четвъртък",
+  "петък",
+  "събота",
+];
+
+const MONTHS_BG = [
+  "януари",
+  "февруари",
+  "март",
+  "април",
+  "май",
+  "юни",
+  "юли",
+  "август",
+  "септември",
+  "октомври",
+  "ноември",
+  "декември",
+];
+
 export function getCycleBounds(settings: Settings, now = new Date()): CycleBounds {
   const today = startOfDay(now);
+  const locale = settings.locale ?? "en";
   let start: Date;
   let end: Date;
   let label: string;
@@ -124,7 +157,10 @@ export function getCycleBounds(settings: Settings, now = new Date()): CycleBound
     start.setDate(today.getDate() - daysBack);
     end = new Date(start);
     end.setDate(end.getDate() + 7);
-    label = `Week \u00B7 resets ${WEEKDAYS[w]}`;
+    label =
+      locale === "bg"
+        ? `Седмица \u00B7 нулиране в ${WEEKDAYS_BG[w]}`
+        : `Week \u00B7 resets ${WEEKDAYS[w]}`;
   } else if (settings.period === "year") {
     const ym = settings.yearlyResetMonth - 1;
     const yd = settings.yearlyResetDay;
@@ -137,7 +173,10 @@ export function getCycleBounds(settings: Settings, now = new Date()): CycleBound
       start = clampedDate(y - 1, ym, yd);
       end = thisYearReset;
     }
-    label = `Year \u00B7 resets ${MONTHS[ym]} ${yd}`;
+    label =
+      locale === "bg"
+        ? `Година \u00B7 нулиране на ${yd} ${MONTHS_BG[ym]}`
+        : `Year \u00B7 resets ${MONTHS[ym]} ${yd}`;
   } else {
     const d = settings.monthlyResetDay;
     const y = today.getFullYear();
@@ -150,7 +189,10 @@ export function getCycleBounds(settings: Settings, now = new Date()): CycleBound
       start = clampedDate(y, m - 1, d);
       end = thisMonthReset;
     }
-    label = `Month \u00B7 resets on the ${ordinal(d)}`;
+    label =
+      locale === "bg"
+        ? `Месец \u00B7 нулиране на ${d}-о число`
+        : `Month \u00B7 resets on the ${ordinal(d)}`;
   }
 
   const daysUntilReset = Math.max(

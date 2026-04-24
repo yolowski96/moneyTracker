@@ -3,16 +3,49 @@ import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSettings, getCycleBounds, type Period } from "@/lib/cycle";
+import { getAllCategories } from "@/lib/categories";
 import { generateApiToken } from "@/lib/auth";
-import { TAG_SETTINGS, TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import {
+  TAG_SETTINGS,
+  TAG_TRANSACTIONS,
+  TAG_CATEGORIES,
+} from "@/lib/cache-tags";
 import { log } from "@/lib/log";
+import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
+import { currencySymbol } from "@/lib/format";
 import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
+import { CategoriesCard } from "./categories-card";
 import { ThemeToggle } from "../theme-toggle";
 
+const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_BG = ["нед", "пон", "вто", "сря", "чет", "пет", "съб"];
+const MONTHS_EN = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const MONTHS_BG = [
+  "яну", "фев", "мар", "апр", "май", "юни",
+  "юли", "авг", "сеп", "окт", "ное", "дек",
+];
+
 export default async function SettingsPage() {
-  const settings = await getSettings();
+  const [settings, categories] = await Promise.all([
+    getSettings(),
+    getAllCategories(),
+  ]);
   const cycle = getCycleBounds(settings);
+  const locale = settings.locale;
+  const weekdayLabels = locale === "bg" ? WEEKDAYS_BG : WEEKDAYS_EN;
+  const monthLabels = locale === "bg" ? MONTHS_BG : MONTHS_EN;
+  const periodAdj = t(
+    locale,
+    settings.period === "week"
+      ? "weekly"
+      : settings.period === "year"
+        ? "yearly"
+        : "monthly",
+  );
 
   async function save(formData: FormData) {
     "use server";
@@ -44,6 +77,9 @@ export default async function SettingsPage() {
       ? Math.round(incomeRaw * 100)
       : 0;
 
+    const localeRaw = String(formData.get("locale") ?? "en");
+    const currencyRaw = String(formData.get("currency") ?? "EUR");
+
     const data = {
       period: ["week", "month", "year"].includes(period) ? period : "month",
       monthlyResetDay,
@@ -51,6 +87,8 @@ export default async function SettingsPage() {
       yearlyResetMonth,
       yearlyResetDay,
       incomeAmount,
+      locale: isLocale(localeRaw) ? localeRaw : "en",
+      currency: isCurrency(currencyRaw) ? currencyRaw : "EUR",
     };
     await prisma.settings.upsert({
       where: { id: 1 },
@@ -65,10 +103,10 @@ export default async function SettingsPage() {
       weeklyResetDay: data.weeklyResetDay,
       yearlyResetMonth: data.yearlyResetMonth,
       yearlyResetDay: data.yearlyResetDay,
+      locale: data.locale,
+      currency: data.currency,
     });
 
-    // Settings changed, and since cycle bounds depend on settings the cached
-    // cycle transactions are stale too — bust both tags.
     updateTag(TAG_SETTINGS);
     updateTag(TAG_TRANSACTIONS);
     redirect("/");
@@ -93,13 +131,85 @@ export default async function SettingsPage() {
     updateTag(TAG_SETTINGS);
   }
 
+  async function addCategory(formData: FormData) {
+    "use server";
+    const emoji = String(formData.get("emoji") ?? "").trim();
+    const label = String(formData.get("label") ?? "").trim();
+    if (!emoji || !label) {
+      log("action.settings.addCategory", 400, "missing_input", "emoji or label missing");
+      return;
+    }
+    const maxPos = await prisma.category.aggregate({
+      _max: { position: true },
+    });
+    await prisma.category.create({
+      data: {
+        emoji,
+        label,
+        position: (maxPos._max.position ?? 0) + 1,
+      },
+    });
+    log("action.settings.addCategory", 200, "created", `${emoji} ${label}`, {
+      emoji,
+      label,
+    });
+    updateTag(TAG_CATEGORIES);
+  }
+
+  async function renameCategory(formData: FormData) {
+    "use server";
+    const id = String(formData.get("id") ?? "");
+    const emoji = String(formData.get("emoji") ?? "").trim();
+    const label = String(formData.get("label") ?? "").trim();
+    if (!id || !emoji || !label) {
+      log("action.settings.renameCategory", 400, "missing_input", "id, emoji, or label missing");
+      return;
+    }
+    await prisma.category.update({
+      where: { id },
+      data: { emoji, label },
+    });
+    log("action.settings.renameCategory", 200, "renamed", `${id} -> ${emoji} ${label}`, {
+      id,
+      emoji,
+      label,
+    });
+    updateTag(TAG_CATEGORIES);
+  }
+
+  async function archiveCategory(formData: FormData) {
+    "use server";
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    await prisma.category.update({
+      where: { id },
+      data: { archived: true },
+    });
+    log("action.settings.archiveCategory", 200, "archived", id, { id });
+    updateTag(TAG_CATEGORIES);
+  }
+
+  async function restoreCategory(formData: FormData) {
+    "use server";
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    await prisma.category.update({
+      where: { id },
+      data: { archived: false },
+    });
+    log("action.settings.restoreCategory", 200, "restored", id, { id });
+    updateTag(TAG_CATEGORIES);
+  }
+
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
       <header className="mb-10 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t(locale, "settings")}
+          </h1>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Configure your tracking cycle.
+            {t(locale, "settingsTagline")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -107,30 +217,30 @@ export default async function SettingsPage() {
             href="/inbox"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            Inbox
+            {t(locale, "inbox")}
           </Link>
           <Link
             href="/charts"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            Charts
+            {t(locale, "charts")}
           </Link>
           <Link
             href="/"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            {"\u2190"} Back
+            {"\u2190"} {t(locale, "back")}
           </Link>
           <ThemeToggle />
         </div>
       </header>
 
       <div className="divide-y divide-[color:var(--border)] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
-        <details className="group">
+        <details className="group" open>
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
             <div>
               <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-                Cycle {"\u00B7"} income
+                {t(locale, "cycleAndIncome")}
               </div>
               <div className="mt-0.5 text-[color:var(--muted)]">
                 {cycle.label}
@@ -145,9 +255,38 @@ export default async function SettingsPage() {
           </summary>
           <div className="space-y-6 border-t border-[color:var(--border)] px-4 py-4">
             <p className="text-sm text-[color:var(--muted)]">
-              How often your budget resets and what you bring in per period.
+              {t(locale, "cycleDescribe")}
             </p>
-            <SettingsForm initial={settings} action={save} />
+            <SettingsForm
+              initial={settings}
+              currencySymbol={currencySymbol(locale, settings.currency)}
+              locales={LOCALES}
+              currencies={CURRENCIES}
+              weekdayLabels={weekdayLabels}
+              monthLabels={monthLabels}
+              periodAdjective={periodAdj}
+              labels={{
+                trackBy: t(locale, "trackBy"),
+                week: t(locale, "week"),
+                month: t(locale, "month"),
+                year: t(locale, "year"),
+                weekHint: t(locale, "weekHint"),
+                monthHint: t(locale, "monthHint"),
+                yearHint: t(locale, "yearHint"),
+                periodIncome: t(locale, "periodIncome"),
+                incomeDescription: t(locale, "incomeDescription"),
+                resetDay: t(locale, "resetDay"),
+                salaryResetDay: t(locale, "salaryResetDay"),
+                salaryResetHint: t(locale, "salaryResetHint"),
+                resetMonth: t(locale, "resetMonth"),
+                language: t(locale, "language"),
+                currency: t(locale, "currency"),
+                save: t(locale, "save"),
+                saving: t(locale, "saving"),
+                resetNote: t(locale, "resetNote"),
+              }}
+              action={save}
+            />
           </div>
         </details>
 
@@ -155,10 +294,10 @@ export default async function SettingsPage() {
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
             <div>
               <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-                API access
+                {t(locale, "categories")}
               </div>
               <div className="mt-0.5 text-[color:var(--muted)]">
-                {settings.apiToken ? "Key configured" : "No key yet"}
+                {categories.filter((c) => !c.archived).length} {t(locale, "activeCategories").toLowerCase()}
               </div>
             </div>
             <span
@@ -170,10 +309,74 @@ export default async function SettingsPage() {
           </summary>
           <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
             <p className="text-sm text-[color:var(--muted)]">
-              Authenticate iOS Shortcuts and other clients posting to{" "}
+              {t(locale, "categoriesDescribe")}
+            </p>
+            <CategoriesCard
+              categories={categories}
+              labels={{
+                emoji: t(locale, "emoji"),
+                label: t(locale, "label"),
+                emojiPlaceholder: t(locale, "emojiPlaceholder"),
+                labelPlaceholder: t(locale, "labelPlaceholder"),
+                addCategory: t(locale, "addCategory"),
+                activeCategories: t(locale, "activeCategories"),
+                archived: t(locale, "archived"),
+                archive: t(locale, "archive"),
+                restore: t(locale, "restore"),
+                rename: t(locale, "rename"),
+                save: t(locale, "save"),
+                cancel: t(locale, "cancel"),
+                noCategories: t(locale, "noCategories"),
+                noArchived: t(locale, "noArchived"),
+              }}
+              onAdd={addCategory}
+              onRename={renameCategory}
+              onArchive={archiveCategory}
+              onRestore={restoreCategory}
+            />
+          </div>
+        </details>
+
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+                {t(locale, "apiAccess")}
+              </div>
+              <div className="mt-0.5 text-[color:var(--muted)]">
+                {settings.apiToken ? t(locale, "keyConfigured") : t(locale, "noKeyYet")}
+              </div>
+            </div>
+            <span
+              aria-hidden
+              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+            >
+              {"\u203A"}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+            <p className="text-sm text-[color:var(--muted)]">
+              {t(locale, "apiKeyDescribe")}{" "}
               <code className="font-mono text-xs">/api/transactions</code>.
             </p>
-            <ApiKeyCard token={settings.apiToken} action={regenerateApiToken} />
+            <ApiKeyCard
+              token={settings.apiToken}
+              labels={{
+                yourKey: t(locale, "apiKeyHeader"),
+                noKeyYet: t(locale, "noKeyYet"),
+                noKeyHint: t(locale, "noKeyHint"),
+                show: t(locale, "show"),
+                hide: t(locale, "hide"),
+                copy: t(locale, "copy"),
+                copied: t(locale, "copied"),
+                regenerate: t(locale, "regenerate"),
+                regenerating: t(locale, "regenerating"),
+                generate: t(locale, "generateKey"),
+                generating: t(locale, "generating"),
+                regenerateWarn: t(locale, "regenerateWarn"),
+              }}
+              action={regenerateApiToken}
+            />
           </div>
         </details>
       </div>

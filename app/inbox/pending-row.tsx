@@ -16,6 +16,7 @@ type Tx = {
 type Props = {
   transaction: Tx;
   categories: Category[];
+  labels: { edit: string; dismiss: string };
   onCategorize: (formData: FormData) => Promise<void>;
   onDelete: (formData: FormData) => Promise<void>;
 };
@@ -23,6 +24,7 @@ type Props = {
 export function PendingRow({
   transaction,
   categories,
+  labels,
   onCategorize,
   onDelete,
 }: Props) {
@@ -66,7 +68,7 @@ export function PendingRow({
           </span>
           <Link
             href={`/edit/${transaction.id}?from=inbox`}
-            aria-label="Edit"
+            aria-label={labels.edit}
             className="text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
             {"\u270E"}
@@ -75,7 +77,7 @@ export function PendingRow({
             type="button"
             onClick={remove}
             disabled={isPending}
-            aria-label="Dismiss"
+            aria-label={labels.dismiss}
             className="text-[color:var(--muted)] hover:text-red-500"
           >
             &times;

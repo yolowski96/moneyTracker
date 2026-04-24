@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { formatAmount } from "@/lib/money";
+import { formatAmount, formatDateShort } from "@/lib/format";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
-import { CATEGORIES, getCategory } from "@/lib/categories";
+import { getActiveCategories, getCategory } from "@/lib/categories";
+import { t } from "@/lib/i18n";
+import { bcp47, currencySymbol } from "@/lib/format";
 import { AddTransactionForm } from "./add-form";
 import { AddIncomeForm } from "./add-income-form";
 import { ThemeToggle } from "./theme-toggle";
@@ -27,49 +29,59 @@ function groupByDay<T extends { occurredAt: Date }>(items: T[]) {
   return [...map.entries()];
 }
 
-function formatDayLabel(iso: string) {
+function formatDayLabel(iso: string, locale: "en" | "bg") {
   const d = new Date(iso + "T00:00:00");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  if (d.getTime() === today.getTime()) return "Today";
-  if (d.getTime() === yesterday.getTime()) return "Yesterday";
-  return d.toLocaleDateString("en-IE", {
+  if (d.getTime() === today.getTime()) return t(locale, "today");
+  if (d.getTime() === yesterday.getTime()) return t(locale, "yesterday");
+  return d.toLocaleDateString(bcp47(locale), {
     weekday: "short",
     day: "numeric",
     month: "short",
   });
 }
 
-function formatCycleDate(d: Date) {
-  return d.toLocaleDateString("en-IE", { day: "numeric", month: "short" });
-}
-
 export default async function Home() {
-  // Kick off everything that doesn't depend on settings in parallel with it.
   const settingsPromise = getSettings();
   const recentPromise = getRecentTransactions(200);
   const pendingPromise = getPendingCount();
+  const categoriesPromise = getActiveCategories();
 
   const settings = await settingsPromise;
   const cycle = getCycleBounds(settings);
+  const locale = settings.locale;
+  const userCurrency = settings.currency;
 
-  const [cycleTransactions, recentTransactions, pendingCount, cycleIncome] =
+  const [cycleTransactions, recentTransactions, pendingCount, cycleIncome, categories] =
     await Promise.all([
       getCycleTransactions(cycle.start.toISOString(), cycle.end.toISOString()),
       recentPromise,
       pendingPromise,
       getCycleIncomeEvents(cycle.start.toISOString(), cycle.end.toISOString()),
+      categoriesPromise,
     ]);
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  // Also include archived for display lookup of historical txns
+  const allCategoriesForLookup = await Promise.all(
+    [...new Set(cycleTransactions.map((t) => t.category).filter(Boolean) as string[])]
+      .filter((id) => !categoryById.has(id))
+      .map((id) => getCategory(id)),
+  );
+  for (const c of allCategoriesForLookup) {
+    if (c) categoryById.set(c.id, c);
+  }
 
   const cycleTotal = cycleTransactions.reduce((sum, t) => sum + t.amount, 0);
   const bonusTotal = cycleIncome.reduce((sum, e) => sum + e.amount, 0);
   const totalIncome = settings.incomeAmount + bonusTotal;
 
   const byCategory = new Map<string | null, number>();
-  for (const t of cycleTransactions) {
-    byCategory.set(t.category, (byCategory.get(t.category) ?? 0) + t.amount);
+  for (const tx of cycleTransactions) {
+    byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + tx.amount);
   }
   const categoryRows = [...byCategory.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -89,9 +101,11 @@ export default async function Home() {
       });
       return;
     }
+    const settingsRow = await getSettings();
     const row = await prisma.transaction.create({
       data: {
         amount: Math.round(amount * 100),
+        currency: settingsRow.currency,
         merchant,
         category: category || null,
         source: "web",
@@ -128,9 +142,11 @@ export default async function Home() {
       });
       return;
     }
+    const settingsRow = await getSettings();
     const row = await prisma.incomeEvent.create({
       data: {
         amount: Math.round(amount * 100),
+        currency: settingsRow.currency,
         note: note || null,
       },
     });
@@ -158,9 +174,9 @@ export default async function Home() {
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
       <header className="mb-12 flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">EuroTrack</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">{t(locale, "appName")}</h1>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            A minimal money tracker.
+            {t(locale, "tagline")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -168,7 +184,7 @@ export default async function Home() {
             href="/inbox"
             className="relative text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            Inbox
+            {t(locale, "inbox")}
             {pendingCount > 0 && (
               <span className="ml-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white tabular-nums">
                 {pendingCount}
@@ -179,13 +195,13 @@ export default async function Home() {
             href="/charts"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            Charts
+            {t(locale, "charts")}
           </Link>
           <Link
             href="/settings"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            Settings
+            {t(locale, "settings")}
           </Link>
           <ThemeToggle />
         </div>
@@ -198,8 +214,8 @@ export default async function Home() {
           </div>
           <div className="text-xs text-[color:var(--muted)]">
             {cycle.daysUntilReset === 0
-              ? "Resets today"
-              : `Resets in ${cycle.daysUntilReset}d`}
+              ? t(locale, "resetsToday")
+              : `${t(locale, "resetsIn")} ${cycle.daysUntilReset}d`}
           </div>
         </div>
 
@@ -208,7 +224,7 @@ export default async function Home() {
             <div className="mt-3 flex items-baseline justify-between">
               <div>
                 <div className="text-xs text-[color:var(--muted)]">
-                  Remaining
+                  {t(locale, "remaining")}
                 </div>
                 <div
                   className={
@@ -216,23 +232,23 @@ export default async function Home() {
                     (totalIncome - cycleTotal < 0 ? "text-red-500" : "")
                   }
                 >
-                  {formatAmount(totalIncome - cycleTotal)}
+                  {formatAmount(totalIncome - cycleTotal, locale, userCurrency)}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-xs text-[color:var(--muted)]">
-                  Income {"\u00B7"} Spent
+                  {t(locale, "incomeDotSpent")}
                 </div>
                 <div className="font-mono text-sm tabular-nums">
-                  {formatAmount(totalIncome)}{" "}
+                  {formatAmount(totalIncome, locale, userCurrency)}{" "}
                   <span className="text-[color:var(--muted)]">
-                    {"\u00B7"} {formatAmount(cycleTotal)}
+                    {"\u00B7"} {formatAmount(cycleTotal, locale, userCurrency)}
                   </span>
                 </div>
                 {bonusTotal > 0 && (
                   <div className="mt-0.5 text-xs text-[color:var(--muted)]">
-                    {formatAmount(settings.incomeAmount)} base {"+"}{" "}
-                    {formatAmount(bonusTotal)} extra
+                    {formatAmount(settings.incomeAmount, locale, userCurrency)} {t(locale, "base")} {"+"}{" "}
+                    {formatAmount(bonusTotal, locale, userCurrency)} {t(locale, "extra")}
                   </div>
                 )}
               </div>
@@ -261,12 +277,13 @@ export default async function Home() {
                   </div>
                   <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
                     <span>
-                      {pct}% used {"\u00B7"} {cycleTransactions.length} txns
+                      {pct}{t(locale, "pctUsed")} {"\u00B7"} {cycleTransactions.length} {t(locale, "txns")}
                     </span>
                     <span>
-                      {formatCycleDate(cycle.start)} {"\u2192"}{" "}
-                      {formatCycleDate(
+                      {formatDateShort(cycle.start, locale)} {"\u2192"}{" "}
+                      {formatDateShort(
                         new Date(cycle.end.getTime() - 86_400_000),
+                        locale,
                       )}
                     </span>
                   </div>
@@ -277,14 +294,14 @@ export default async function Home() {
         ) : (
           <>
             <div className="mt-2 text-4xl font-medium tabular-nums">
-              {formatAmount(cycleTotal)}
+              {formatAmount(cycleTotal, locale, userCurrency)}
             </div>
             <div className="mt-1 text-xs text-[color:var(--muted)]">
-              {cycleTransactions.length} transactions {"\u00B7"}{" "}
+              {cycleTransactions.length} {t(locale, "transactions")} {"\u00B7"}{" "}
               <Link href="/settings" className="underline">
-                set your income
-              </Link>{" "}
-              to see what{"\u2019"}s left
+                {t(locale, "setYourIncome")}
+              </Link>
+              {t(locale, "toSeeWhatsLeft")}
             </div>
           </>
         )}
@@ -292,10 +309,10 @@ export default async function Home() {
         <div className="mt-5 border-t border-[color:var(--border)] pt-4">
           <div className="mb-2 flex items-baseline justify-between">
             <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-              Extra income this {settings.period}
+              {t(locale, "extraIncomeThis")} {t(locale, settings.period)}
             </div>
             <div className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
-              {formatAmount(bonusTotal)}
+              {formatAmount(bonusTotal, locale, userCurrency)}
             </div>
           </div>
           {cycleIncome.length > 0 && (
@@ -311,24 +328,21 @@ export default async function Home() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate">
-                        {e.note || "Extra income"}
+                        {e.note || t(locale, "extraIncome")}
                       </div>
                       <div className="mt-0.5 text-xs text-[color:var(--muted)]">
-                        {e.occurredAt.toLocaleDateString("en-IE", {
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {formatDateShort(e.occurredAt, locale)}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm tabular-nums">
                       {"+"}
-                      {formatAmount(e.amount, e.currency)}
+                      {formatAmount(e.amount, locale, e.currency)}
                     </span>
                     <Link
                       href={`/income/edit/${e.id}`}
-                      aria-label="Edit"
+                      aria-label={t(locale, "edit")}
                       className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       {"\u270E"}
@@ -337,7 +351,7 @@ export default async function Home() {
                       <input type="hidden" name="id" value={e.id} />
                       <button
                         type="submit"
-                        aria-label="Remove"
+                        aria-label={t(locale, "remove")}
                         className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         &times;
@@ -348,20 +362,30 @@ export default async function Home() {
               ))}
             </ul>
           )}
-          <AddIncomeForm action={addIncomeEvent} />
+          <AddIncomeForm
+            action={addIncomeEvent}
+            currencySymbol={currencySymbol(locale, userCurrency)}
+            labels={{
+              addExtraIncome: t(locale, "extraIncome"),
+              add: t(locale, "add"),
+              adding: t(locale, "add"),
+              cancel: t(locale, "cancel"),
+              notePlaceholder: t(locale, "notePlaceholder"),
+            }}
+          />
         </div>
 
         {categoryRows.length > 0 && (
           <ul className="mt-5 space-y-1.5 border-t border-[color:var(--border)] pt-4">
             {categoryRows.map(([catId, total]) => {
-              const cat = getCategory(catId);
+              const cat = catId ? categoryById.get(catId) ?? null : null;
               const pct = cycleTotal
                 ? Math.round((total / cycleTotal) * 100)
                 : 0;
               return (
                 <li key={catId ?? "uncat"} className="flex items-center gap-3 text-sm">
                   <span className="w-24 shrink-0 truncate">
-                    {cat ? `${cat.emoji} ${cat.label}` : "\u2014 Uncategorized"}
+                    {cat ? `${cat.emoji} ${cat.label}` : "\u2014"}
                   </span>
                   <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
                     <div
@@ -370,7 +394,7 @@ export default async function Home() {
                     />
                   </div>
                   <span className="w-20 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
-                    {formatAmount(total)}
+                    {formatAmount(total, locale, userCurrency)}
                   </span>
                 </li>
               );
@@ -379,12 +403,20 @@ export default async function Home() {
         )}
       </section>
 
-      <AddTransactionForm action={addTransaction} />
+      <AddTransactionForm
+        action={addTransaction}
+        categories={categories}
+        labels={{
+          merchant: t(locale, "merchantPlaceholder"),
+          add: t(locale, "add"),
+          adding: t(locale, "add"),
+        }}
+      />
 
       <section className="mt-12 space-y-8">
         {grouped.length === 0 && (
           <div className="text-sm text-[color:var(--muted)]">
-            No transactions yet. Add one above, or POST to{" "}
+            {t(locale, "noTransactionsYet")}{" "}
             <code className="font-mono text-xs">/api/transactions</code>.
           </div>
         )}
@@ -394,18 +426,18 @@ export default async function Home() {
             <div key={day}>
               <div className="mb-2 flex items-baseline justify-between border-b border-[color:var(--border)] pb-2">
                 <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-                  {formatDayLabel(day)}
+                  {formatDayLabel(day, locale)}
                 </div>
                 <div className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
-                  {formatAmount(dayTotal)}
+                  {formatAmount(dayTotal, locale, userCurrency)}
                 </div>
               </div>
               <ul className="divide-y divide-[color:var(--border)]">
-                {items.map((t) => {
-                  const cat = getCategory(t.category);
+                {items.map((tx) => {
+                  const cat = tx.category ? categoryById.get(tx.category) ?? null : null;
                   return (
                     <li
-                      key={t.id}
+                      key={tx.id}
                       className="group flex items-center justify-between py-3"
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
@@ -416,30 +448,30 @@ export default async function Home() {
                           {cat?.emoji ?? "\u{1F4B6}"}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm">{t.merchant}</div>
-                          {(cat || t.note) && (
+                          <div className="truncate text-sm">{tx.merchant}</div>
+                          {(cat || tx.note) && (
                             <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
-                              {[cat?.label, t.note].filter(Boolean).join(" \u00B7 ")}
+                              {[cat?.label, tx.note].filter(Boolean).join(" \u00B7 ")}
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-mono text-sm tabular-nums">
-                          {formatAmount(t.amount, t.currency)}
+                          {formatAmount(tx.amount, locale, tx.currency)}
                         </span>
                         <Link
-                          href={`/edit/${t.id}`}
-                          aria-label="Edit"
+                          href={`/edit/${tx.id}`}
+                          aria-label={t(locale, "edit")}
                           className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           {"\u270E"}
                         </Link>
                         <form action={deleteTransaction}>
-                          <input type="hidden" name="id" value={t.id} />
+                          <input type="hidden" name="id" value={tx.id} />
                           <button
                             type="submit"
-                            aria-label="Delete"
+                            aria-label={t(locale, "delete")}
                             className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
                           >
                             &times;
@@ -454,17 +486,6 @@ export default async function Home() {
           );
         })}
       </section>
-
-      <footer className="mt-24 border-t border-[color:var(--border)] pt-6 text-xs text-[color:var(--muted)]">
-        Categories:{" "}
-        {CATEGORIES.slice(0, 6)
-          .map((c) => c.emoji)
-          .join(" ")}
-        {" \u2026 \u00B7 "}
-        <Link href="/settings" className="underline">
-          configure period
-        </Link>
-      </footer>
     </main>
   );
 }

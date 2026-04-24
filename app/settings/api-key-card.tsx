@@ -2,12 +2,28 @@
 
 import { useState, useTransition } from "react";
 
+type Labels = {
+  yourKey: string;
+  noKeyYet: string;
+  noKeyHint: string;
+  show: string;
+  hide: string;
+  copy: string;
+  copied: string;
+  regenerate: string;
+  regenerating: string;
+  generate: string;
+  generating: string;
+  regenerateWarn: string;
+};
+
 type Props = {
   token: string | null;
+  labels: Labels;
   action: () => Promise<void>;
 };
 
-export function ApiKeyCard({ token, action }: Props) {
+export function ApiKeyCard({ token, labels, action }: Props) {
   const [isPending, startTransition] = useTransition();
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,7 +47,7 @@ export function ApiKeyCard({ token, action }: Props) {
     <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
       <div className="flex items-baseline justify-between">
         <div className="text-sm font-medium">
-          {token ? "Your API key" : "No key yet"}
+          {token ? labels.yourKey : labels.noKeyYet}
         </div>
         <div className="text-xs text-[color:var(--muted)]">
           <code className="font-mono">{"Authorization: Bearer \u2026"}</code>
@@ -48,19 +64,19 @@ export function ApiKeyCard({ token, action }: Props) {
             onClick={() => setReveal((r) => !r)}
             className="rounded-md border border-[color:var(--border)] px-3 py-2 text-xs hover:bg-[color:var(--background)]"
           >
-            {reveal ? "Hide" : "Show"}
+            {reveal ? labels.hide : labels.show}
           </button>
           <button
             type="button"
             onClick={copy}
             className="rounded-md border border-[color:var(--border)] px-3 py-2 text-xs hover:bg-[color:var(--background)]"
           >
-            {copied ? "Copied" : "Copy"}
+            {copied ? labels.copied : labels.copy}
           </button>
         </div>
       ) : (
         <div className="mt-3 text-xs text-[color:var(--muted)]">
-          No key yet. Generate one to authenticate your iOS Shortcut.
+          {labels.noKeyHint}
         </div>
       )}
 
@@ -73,15 +89,15 @@ export function ApiKeyCard({ token, action }: Props) {
         >
           {isPending
             ? token
-              ? "Regenerating\u2026"
-              : "Generating\u2026"
+              ? `${labels.regenerating}\u2026`
+              : `${labels.generating}\u2026`
             : token
-              ? "Regenerate"
-              : "Generate key"}
+              ? labels.regenerate
+              : labels.generate}
         </button>
         {token && (
           <span className="text-xs text-[color:var(--muted)]">
-            Regenerating invalidates the old key immediately.
+            {labels.regenerateWarn}
           </span>
         )}
       </div>

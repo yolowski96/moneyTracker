@@ -16,6 +16,20 @@ type Props = {
   initial: Initial;
   returnTo: string;
   categories: Category[];
+  currencySymbol: string;
+  labels: {
+    amount: string;
+    merchant: string;
+    category: string;
+    none: string;
+    note: string;
+    noteOptional: string;
+    date: string;
+    delete: string;
+    save: string;
+    saving: string;
+    confirmDelete: string;
+  };
   onSave: (formData: FormData) => Promise<void>;
   onDelete: (formData: FormData) => Promise<void>;
 };
@@ -24,6 +38,8 @@ export function EditForm({
   initial,
   returnTo,
   categories,
+  currencySymbol,
+  labels,
   onSave,
   onDelete,
 }: Props) {
@@ -59,11 +75,11 @@ export function EditForm({
     >
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          Amount
+          {labels.amount}
         </label>
         <div className="mt-2 flex items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] p-2 focus-within:border-[color:var(--foreground)]/30">
           <span className="pl-1 text-sm text-[color:var(--muted)]">
-            {"\u20AC"}
+            {currencySymbol}
           </span>
           <input
             type="number"
@@ -80,7 +96,7 @@ export function EditForm({
 
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          Merchant
+          {labels.merchant}
         </label>
         <input
           type="text"
@@ -93,7 +109,7 @@ export function EditForm({
 
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          Category
+          {labels.category}
         </label>
         <div className="mt-2 flex flex-wrap gap-1">
           <button
@@ -106,7 +122,7 @@ export function EditForm({
                 : "text-[color:var(--muted)] hover:bg-[color:var(--surface)]")
             }
           >
-            {"\u2014"} None
+            {"\u2014"} {labels.none}
           </button>
           {categories.map((c) => {
             const active = category === c.id;
@@ -132,20 +148,20 @@ export function EditForm({
 
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          Note
+          {labels.note}
         </label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
-          placeholder="Optional"
+          placeholder={labels.noteOptional}
           className="mt-2 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm outline-none focus:border-[color:var(--foreground)]/30"
         />
       </section>
 
       <section>
         <label className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          Date
+          {labels.date}
         </label>
         <input
           type="datetime-local"
@@ -159,20 +175,20 @@ export function EditForm({
         <button
           type="button"
           onClick={() => {
-            if (!confirm("Delete this transaction?")) return;
+            if (!confirm(labels.confirmDelete)) return;
             submit(onDelete)();
           }}
           disabled={isPending}
           className="text-sm text-red-500 hover:underline disabled:opacity-50"
         >
-          Delete
+          {labels.delete}
         </button>
         <button
           type="submit"
           disabled={isPending}
           className="rounded-md bg-[color:var(--foreground)] px-4 py-2 text-sm font-medium text-[color:var(--background)] disabled:opacity-50"
         >
-          {isPending ? "Saving\u2026" : "Save"}
+          {isPending ? `${labels.saving}\u2026` : labels.save}
         </button>
       </div>
     </form>

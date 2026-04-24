@@ -4,6 +4,9 @@ import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { TAG_INCOME_EVENTS } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
+import { getSettings } from "@/lib/cycle";
+import { t } from "@/lib/i18n";
+import { currencySymbol } from "@/lib/format";
 import { ThemeToggle } from "../../../theme-toggle";
 import { IncomeEditForm } from "./form";
 
@@ -16,8 +19,12 @@ type PageProps = {
 export default async function EditIncomePage({ params }: PageProps) {
   const { id } = await params;
 
-  const income = await prisma.incomeEvent.findUnique({ where: { id } });
+  const [income, settings] = await Promise.all([
+    prisma.incomeEvent.findUnique({ where: { id } }),
+    getSettings(),
+  ]);
   if (!income) notFound();
+  const locale = settings.locale;
 
   async function save(formData: FormData) {
     "use server";
@@ -86,10 +93,10 @@ export default async function EditIncomePage({ params }: PageProps) {
       <header className="mb-10 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Edit extra income
+            {t(locale, "editIncome")}
           </h1>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Added {income.createdAt.toLocaleString("en-IE")}
+            {t(locale, "added")} {income.createdAt.toLocaleString("en-IE")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -97,7 +104,7 @@ export default async function EditIncomePage({ params }: PageProps) {
             href="/"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            {"\u2190"} Cancel
+            {"\u2190"} {t(locale, "cancel")}
           </Link>
           <ThemeToggle />
         </div>
@@ -109,6 +116,18 @@ export default async function EditIncomePage({ params }: PageProps) {
           amount: (income.amount / 100).toFixed(2),
           note: income.note ?? "",
           occurredAt: toLocalInputValue(income.occurredAt),
+        }}
+        currencySymbol={currencySymbol(locale, income.currency)}
+        labels={{
+          amount: t(locale, "amountPlaceholder"),
+          note: t(locale, "note"),
+          notePlaceholder: t(locale, "noteIncomeExample"),
+          date: t(locale, "date"),
+          dateHint: t(locale, "determinesCycle"),
+          delete: t(locale, "delete"),
+          save: t(locale, "save"),
+          saving: t(locale, "saving"),
+          confirmDelete: t(locale, "confirmDeleteIncome"),
         }}
         onSave={save}
         onDelete={remove}
