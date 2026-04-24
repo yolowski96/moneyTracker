@@ -17,6 +17,7 @@ import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
 import { ThemeToggle } from "../theme-toggle";
+import { MobileMenu } from "../mobile-menu";
 
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_BG = ["нед", "пон", "вто", "сря", "чет", "пет", "съб"];
@@ -203,40 +204,57 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <header className="mb-10 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t(locale, "settings")}
-          </h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            {t(locale, "settingsTagline")}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/inbox"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "inbox")}
-          </Link>
-          <Link
-            href="/charts"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "charts")}
-          </Link>
-          <Link
-            href="/"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {"\u2190"} {t(locale, "back")}
-          </Link>
+      <header className="mb-10">
+        <div className="flex items-center justify-between gap-3 sm:hidden">
+          <MobileMenu
+            ariaLabel={t(locale, "menu")}
+            title={t(locale, "appName")}
+            items={[
+              { href: "/", label: t(locale, "appName") },
+              { href: "/inbox", label: t(locale, "inbox") },
+              { href: "/charts", label: t(locale, "charts") },
+            ]}
+          />
+          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
+            {t(locale, "appName")}
+          </div>
           <ThemeToggle />
+        </div>
+        <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t(locale, "settings")}
+            </h1>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">
+              {t(locale, "settingsTagline")}
+            </p>
+          </div>
+          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
+            <Link
+              href="/inbox"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "inbox")}
+            </Link>
+            <Link
+              href="/charts"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "charts")}
+            </Link>
+            <Link
+              href="/"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {"\u2190"} {t(locale, "back")}
+            </Link>
+            <ThemeToggle />
+          </nav>
         </div>
       </header>
 
       <div className="divide-y divide-[color:var(--border)] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
-        <details className="group" open>
+        <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
             <div>
               <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">

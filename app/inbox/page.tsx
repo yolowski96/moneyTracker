@@ -9,6 +9,7 @@ import { getPendingTransactions } from "@/lib/queries";
 import { getSettings } from "@/lib/cycle";
 import { t } from "@/lib/i18n";
 import { ThemeToggle } from "../theme-toggle";
+import { MobileMenu } from "../mobile-menu";
 import { PendingRow } from "./pending-row";
 
 export default async function InboxPage() {
@@ -63,33 +64,50 @@ export default async function InboxPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <header className="mb-10 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "inbox")}</h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            {t(locale, "inboxTagline")}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/charts"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "charts")}
-          </Link>
-          <Link
-            href="/settings"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "settings")}
-          </Link>
-          <Link
-            href="/"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {"\u2190"} {t(locale, "back")}
-          </Link>
+      <header className="mb-10">
+        <div className="flex items-center justify-between gap-3 sm:hidden">
+          <MobileMenu
+            ariaLabel={t(locale, "menu")}
+            title={t(locale, "appName")}
+            items={[
+              { href: "/", label: t(locale, "appName") },
+              { href: "/charts", label: t(locale, "charts") },
+              { href: "/settings", label: t(locale, "settings") },
+            ]}
+          />
+          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
+            {t(locale, "appName")}
+          </div>
           <ThemeToggle />
+        </div>
+        <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "inbox")}</h1>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">
+              {t(locale, "inboxTagline")}
+            </p>
+          </div>
+          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
+            <Link
+              href="/charts"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "charts")}
+            </Link>
+            <Link
+              href="/settings"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "settings")}
+            </Link>
+            <Link
+              href="/"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {"\u2190"} {t(locale, "back")}
+            </Link>
+            <ThemeToggle />
+          </nav>
         </div>
       </header>
 

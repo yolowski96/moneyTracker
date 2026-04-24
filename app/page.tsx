@@ -8,6 +8,7 @@ import { bcp47, currencySymbol } from "@/lib/format";
 import { AddTransactionForm } from "./add-form";
 import { AddIncomeForm } from "./add-income-form";
 import { ThemeToggle } from "./theme-toggle";
+import { MobileMenu } from "./mobile-menu";
 import { updateTag } from "next/cache";
 import { TAG_TRANSACTIONS, TAG_INCOME_EVENTS } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
@@ -172,38 +173,57 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <header className="mb-12 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t(locale, "appName")}</h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            {t(locale, "tagline")}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/inbox"
-            className="relative text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "inbox")}
-            {pendingCount > 0 && (
-              <span className="ml-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white tabular-nums">
-                {pendingCount}
-              </span>
-            )}
-          </Link>
-          <Link
-            href="/charts"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "charts")}
-          </Link>
-          <Link
-            href="/settings"
-            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-          >
-            {t(locale, "settings")}
-          </Link>
+      <header className="mb-10 sm:mb-12">
+        <div className="flex items-center justify-between gap-3 sm:hidden">
+          <MobileMenu
+            ariaLabel={t(locale, "menu")}
+            title={t(locale, "appName")}
+            items={[
+              { href: "/inbox", label: t(locale, "inbox"), badge: pendingCount },
+              { href: "/charts", label: t(locale, "charts") },
+              { href: "/settings", label: t(locale, "settings") },
+            ]}
+          />
+          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
+            {t(locale, "appName")}
+          </div>
           <ThemeToggle />
+        </div>
+        <div className="mt-6 sm:mt-0 sm:flex sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="hidden text-2xl font-semibold tracking-tight sm:block sm:text-3xl">
+              {t(locale, "appName")}
+            </h1>
+            <p className="text-sm text-[color:var(--muted)] sm:mt-1">
+              {t(locale, "tagline")}
+            </p>
+          </div>
+          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
+            <Link
+              href="/inbox"
+              className="relative text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "inbox")}
+              {pendingCount > 0 && (
+                <span className="ml-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white tabular-nums">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/charts"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "charts")}
+            </Link>
+            <Link
+              href="/settings"
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "settings")}
+            </Link>
+            <ThemeToggle />
+          </nav>
         </div>
       </header>
 

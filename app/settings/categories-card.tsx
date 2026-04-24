@@ -89,27 +89,29 @@ export function CategoriesCard({
         <div className="mb-2 text-xs uppercase tracking-widest text-[color:var(--muted)]">
           {labels.addCategory}
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newEmoji}
-            onChange={(e) => setNewEmoji(e.target.value)}
-            placeholder={labels.emojiPlaceholder}
-            maxLength={4}
-            className="w-16 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-center text-sm outline-none focus:border-[color:var(--foreground)]/30"
-          />
-          <input
-            type="text"
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            placeholder={labels.labelPlaceholder}
-            className="flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm outline-none focus:border-[color:var(--foreground)]/30"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newEmoji}
+              onChange={(e) => setNewEmoji(e.target.value)}
+              placeholder={labels.emojiPlaceholder}
+              maxLength={4}
+              className="w-16 shrink-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-center text-sm outline-none focus:border-[color:var(--foreground)]/30"
+            />
+            <input
+              type="text"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              placeholder={labels.labelPlaceholder}
+              className="min-w-0 flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm outline-none focus:border-[color:var(--foreground)]/30"
+            />
+          </div>
           <button
             type="button"
             onClick={add}
             disabled={isPending || !newLabel.trim() || !newEmoji.trim()}
-            className="rounded-md bg-[color:var(--foreground)] px-3 py-2 text-sm font-medium text-[color:var(--background)] disabled:opacity-50"
+            className="w-full shrink-0 rounded-md bg-[color:var(--foreground)] px-3 py-2 text-sm font-medium text-[color:var(--background)] disabled:opacity-50 sm:w-auto"
           >
             {labels.addCategory}
           </button>

@@ -90,8 +90,8 @@ export default async function EditIncomePage({ params }: PageProps) {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <header className="mb-10 flex items-center justify-between">
-        <div>
+      <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">
             {t(locale, "editIncome")}
           </h1>
