@@ -357,6 +357,7 @@ export default async function SettingsPage() {
             </p>
             <CategoriesCard
               categories={categories}
+              locale={locale}
               labels={{
                 emoji: t(locale, "emoji"),
                 label: t(locale, "label"),

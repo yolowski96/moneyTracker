@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Category } from "@/lib/categories";
+import { categoryLabel, type Locale } from "@/lib/i18n";
 
 type Initial = {
   id: string;
@@ -16,6 +17,7 @@ type Props = {
   initial: Initial;
   returnTo: string;
   categories: Category[];
+  locale: Locale;
   currencySymbol: string;
   labels: {
     amount: string;
@@ -38,6 +40,7 @@ export function EditForm({
   initial,
   returnTo,
   categories,
+  locale,
   currencySymbol,
   labels,
   onSave,
@@ -139,7 +142,7 @@ export function EditForm({
                 }
               >
                 <span className="mr-1">{c.emoji}</span>
-                {c.label}
+                {categoryLabel(c.label, locale)}
               </button>
             );
           })}

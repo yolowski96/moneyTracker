@@ -153,6 +153,7 @@ export default async function InboxPage() {
                 occurredAtLabel: formatDateTime(tx.occurredAt, locale),
               }}
               categories={categories}
+              locale={locale}
               labels={{ edit: t(locale, "edit"), dismiss: t(locale, "remove") }}
               onCategorize={setCategory}
               onDelete={deletePending}

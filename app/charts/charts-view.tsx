@@ -9,7 +9,7 @@ import {
 } from "@/lib/format";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
 import { getAllCategories } from "@/lib/categories";
-import { t } from "@/lib/i18n";
+import { t, categoryLabel } from "@/lib/i18n";
 import {
   getCycleTransactions,
   getMonthTransactions,
@@ -365,7 +365,7 @@ export async function ChartsView({
               return (
                 <li key={catId ?? "uncat"} className="flex items-center gap-3 text-sm">
                   <span className="w-32 shrink-0 truncate">
-                    {cat ? `${cat.emoji} ${cat.label}` : "\u2014"}
+                    {cat ? `${cat.emoji} ${categoryLabel(cat.label, locale)}` : "\u2014"}
                   </span>
                   <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
                     <div

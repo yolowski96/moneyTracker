@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Category } from "@/lib/categories";
+import { categoryLabel, type Locale } from "@/lib/i18n";
 
 type Labels = {
   emoji: string;
@@ -22,6 +23,7 @@ type Labels = {
 
 type Props = {
   categories: Category[];
+  locale: Locale;
   labels: Labels;
   onAdd: (formData: FormData) => Promise<void>;
   onRename: (formData: FormData) => Promise<void>;
@@ -31,6 +33,7 @@ type Props = {
 
 export function CategoriesCard({
   categories,
+  locale,
   labels,
   onAdd,
   onRename,
@@ -170,13 +173,13 @@ export function CategoriesCard({
                   ) : (
                     <>
                       <span className="w-8 text-center text-base">{c.emoji}</span>
-                      <span className="flex-1 truncate">{c.label}</span>
+                      <span className="flex-1 truncate">{categoryLabel(c.label, locale)}</span>
                       <button
                         type="button"
                         onClick={() => {
                           setEditingId(c.id);
                           setEditEmoji(c.emoji);
-                          setEditLabel(c.label);
+                          setEditLabel(categoryLabel(c.label, locale));
                         }}
                         disabled={isPending}
                         className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
@@ -213,7 +216,7 @@ export function CategoriesCard({
             {archived.map((c) => (
               <li key={c.id} className="flex items-center gap-2 py-2 text-sm opacity-60">
                 <span className="w-8 text-center text-base">{c.emoji}</span>
-                <span className="flex-1 truncate">{c.label}</span>
+                <span className="flex-1 truncate">{categoryLabel(c.label, locale)}</span>
                 <button
                   type="button"
                   onClick={() => restore(c.id)}

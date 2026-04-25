@@ -337,3 +337,22 @@ export function t(locale: Locale, key: StringKey, vars?: Record<string, string |
   }
   return raw;
 }
+
+// Translations for the default categories seeded at registration. Only applies
+// when a category's label exactly matches one of the defaults — once a user
+// renames it, the stored label wins.
+const DEFAULT_CATEGORY_LABELS: Record<Locale, Record<string, string>> = {
+  en: {},
+  bg: {
+    Food: "Храна",
+    Groceries: "Хранителни стоки",
+    Transport: "Транспорт",
+    Home: "Дом",
+    Fun: "Забавления",
+    Bills: "Сметки",
+  },
+};
+
+export function categoryLabel(label: string, locale: Locale): string {
+  return DEFAULT_CATEGORY_LABELS[locale]?.[label] ?? label;
+}

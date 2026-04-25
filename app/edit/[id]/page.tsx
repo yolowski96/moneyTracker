@@ -159,6 +159,7 @@ export default async function EditPage({ params, searchParams }: PageProps) {
         }}
         returnTo={returnTo}
         categories={categories}
+        locale={locale}
         currencySymbol={currencySymbol(locale, transaction.currency)}
         labels={{
           amount: t(locale, "amountPlaceholder"),

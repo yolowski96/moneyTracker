@@ -2,10 +2,12 @@
 
 import { useRef, useState, useTransition } from "react";
 import type { Category } from "@/lib/categories";
+import { categoryLabel, type Locale } from "@/lib/i18n";
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
   categories: Category[];
+  locale: Locale;
   labels: {
     merchant: string;
     add: string;
@@ -13,7 +15,7 @@ type Props = {
   };
 };
 
-export function AddTransactionForm({ action, categories, labels }: Props) {
+export function AddTransactionForm({ action, categories, locale, labels }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
   const [categoryId, setCategoryId] = useState<string>("");
@@ -78,7 +80,7 @@ export function AddTransactionForm({ action, categories, labels }: Props) {
               }
             >
               <span className="mr-1">{c.emoji}</span>
-              {c.label}
+              {categoryLabel(c.label, locale)}
             </button>
           );
         })}

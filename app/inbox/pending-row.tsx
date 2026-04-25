@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import type { Category } from "@/lib/categories";
+import { categoryLabel, type Locale } from "@/lib/i18n";
 
 type Tx = {
   id: string;
@@ -16,6 +17,7 @@ type Tx = {
 type Props = {
   transaction: Tx;
   categories: Category[];
+  locale: Locale;
   labels: { edit: string; dismiss: string };
   onCategorize: (formData: FormData) => Promise<void>;
   onDelete: (formData: FormData) => Promise<void>;
@@ -24,6 +26,7 @@ type Props = {
 export function PendingRow({
   transaction,
   categories,
+  locale,
   labels,
   onCategorize,
   onDelete,
@@ -94,7 +97,7 @@ export function PendingRow({
             className="rounded-md px-2 py-1 text-xs text-[color:var(--muted)] transition hover:bg-[color:var(--background)] hover:text-[color:var(--foreground)] disabled:cursor-not-allowed"
           >
             <span className="mr-1">{c.emoji}</span>
-            {c.label}
+            {categoryLabel(c.label, locale)}
           </button>
         ))}
       </div>

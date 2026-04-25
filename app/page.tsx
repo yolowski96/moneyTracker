@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { formatAmount, formatDateShort } from "@/lib/format";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
 import { getActiveCategories, getCategory } from "@/lib/categories";
-import { t } from "@/lib/i18n";
+import { t, categoryLabel } from "@/lib/i18n";
 import { bcp47, currencySymbol } from "@/lib/format";
 import { AddTransactionForm } from "./add-form";
 import { AddIncomeForm } from "./add-income-form";
@@ -446,7 +446,7 @@ export default async function Home() {
               return (
                 <li key={catId ?? "uncat"} className="flex items-center gap-3 text-sm">
                   <span className="w-24 shrink-0 truncate">
-                    {cat ? `${cat.emoji} ${cat.label}` : "\u2014"}
+                    {cat ? `${cat.emoji} ${categoryLabel(cat.label, locale)}` : "\u2014"}
                   </span>
                   <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
                     <div
@@ -467,6 +467,7 @@ export default async function Home() {
       <AddTransactionForm
         action={addTransaction}
         categories={categories}
+        locale={locale}
         labels={{
           merchant: t(locale, "merchantPlaceholder"),
           add: t(locale, "add"),
@@ -512,7 +513,7 @@ export default async function Home() {
                           <div className="truncate text-sm">{tx.merchant}</div>
                           {(cat || tx.note) && (
                             <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
-                              {[cat?.label, tx.note].filter(Boolean).join(" \u00B7 ")}
+                              {[cat ? categoryLabel(cat.label, locale) : null, tx.note].filter(Boolean).join(" \u00B7 ")}
                             </div>
                           )}
                         </div>
