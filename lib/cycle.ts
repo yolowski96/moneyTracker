@@ -1,33 +1,31 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
-import { TAG_SETTINGS } from "./cache-tags";
+import { userSettingsTag } from "./cache-tags";
 import type { Locale, Currency } from "./i18n";
 
 export type Period = "week" | "month" | "year";
 
-const DEFAULT_SETTINGS: Settings = {
-  id: 1,
+const DEFAULT_SETTINGS: Omit<Settings, "id" | "userId"> = {
   period: "month",
   monthlyResetDay: 1,
   weeklyResetDay: 1,
   yearlyResetMonth: 1,
   yearlyResetDay: 1,
   incomeAmount: 0,
-  apiToken: null,
   locale: "en",
   currency: "EUR",
 };
 
 export type Settings = {
-  id: number;
+  id: string;
+  userId: string;
   period: Period;
   monthlyResetDay: number;
   weeklyResetDay: number;
   yearlyResetMonth: number;
   yearlyResetDay: number;
   incomeAmount: number; // cents
-  apiToken: string | null;
   locale: Locale;
   currency: Currency | string;
 };
@@ -79,41 +77,43 @@ function startOfDay(d: Date): Date {
   return x;
 }
 
-// DB read, cached by Next.js data cache. Busted via revalidateTag("settings").
-// Settings change maybe once a week; serving this from cache turns a
-// Supabase round-trip into an in-process read.
-const getSettingsCached = unstable_cache(
-  async (): Promise<Settings> => {
-    const row = await prisma.settings.findUnique({ where: { id: 1 } });
-    if (!row) return DEFAULT_SETTINGS;
-    return {
-      id: row.id,
-      period: (row.period as Period) ?? "month",
-      monthlyResetDay: row.monthlyResetDay,
-      weeklyResetDay: row.weeklyResetDay,
-      yearlyResetMonth: row.yearlyResetMonth,
-      yearlyResetDay: row.yearlyResetDay,
-      incomeAmount: row.incomeAmount,
-      apiToken: row.apiToken,
-      locale: (row.locale as Locale) ?? "en",
-      currency: row.currency ?? "EUR",
-    };
-  },
-  ["settings:v1"],
-  { tags: [TAG_SETTINGS] },
-);
+async function getSettingsForUser(userId: string): Promise<Settings> {
+  const fn = unstable_cache(
+    async (uid: string): Promise<Settings> => {
+      const row = await prisma.settings.findUnique({ where: { userId: uid } });
+      if (!row) {
+        return { id: "", userId: uid, ...DEFAULT_SETTINGS };
+      }
+      return {
+        id: row.id,
+        userId: row.userId,
+        period: (row.period as Period) ?? "month",
+        monthlyResetDay: row.monthlyResetDay,
+        weeklyResetDay: row.weeklyResetDay,
+        yearlyResetMonth: row.yearlyResetMonth,
+        yearlyResetDay: row.yearlyResetDay,
+        incomeAmount: row.incomeAmount,
+        locale: (row.locale as Locale) ?? "en",
+        currency: row.currency ?? "EUR",
+      };
+    },
+    ["settings:v2", userId],
+    { tags: [userSettingsTag(userId)] },
+  );
+  return fn(userId);
+}
 
 // React.cache dedupes concurrent calls within a single render.
-export const getSettings = cache(async (): Promise<Settings> => {
-  return getSettingsCached();
+export const getSettings = cache(async (userId: string): Promise<Settings> => {
+  return getSettingsForUser(userId);
 });
 
 // Use only on the save path. Creates the row if missing, then updates.
-export async function ensureSettings(): Promise<void> {
+export async function ensureSettings(userId: string): Promise<void> {
   await prisma.settings.upsert({
-    where: { id: 1 },
+    where: { userId },
     update: {},
-    create: { id: 1 },
+    create: { userId },
   });
 }
 

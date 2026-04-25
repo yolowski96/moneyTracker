@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import type { Transaction, IncomeEvent } from "@prisma/client";
 import { prisma } from "./prisma";
-import { TAG_TRANSACTIONS, TAG_INCOME_EVENTS } from "./cache-tags";
+import { userTxnTag, userIncomeTag } from "./cache-tags";
 import { log } from "./log";
 
 // Wrapper that logs DB round-trips (cache misses). Cache hits skip the
@@ -40,176 +40,145 @@ function reviveDates(t: SerializedTx): Transaction {
   };
 }
 
-// Recent transactions for the homepage list.
 const getRecentTransactionsCached = unstable_cache(
-  async (limit: number) => {
+  async (userId: string, limit: number) => {
     return query(
       "transactions.recent",
       () =>
         prisma.transaction.findMany({
+          where: { userId },
           orderBy: { occurredAt: "desc" },
           take: limit,
         }),
-      (rows) => ({ rows: rows.length, limit }),
+      (rows) => ({ rows: rows.length, limit, userId }),
     );
   },
-  ["transactions:recent:v1"],
-  { tags: [TAG_TRANSACTIONS] },
+  ["transactions:recent:v2"],
+  { tags: [] },
 );
 
-export async function getRecentTransactions(limit = 200): Promise<Transaction[]> {
-  const rows = (await getRecentTransactionsCached(limit)) as SerializedTx[];
+export async function getRecentTransactions(userId: string, limit = 200): Promise<Transaction[]> {
+  const fn = unstable_cache(
+    (uid: string, l: number) => getRecentTransactionsCached(uid, l),
+    ["transactions:recent:v2", userId],
+    { tags: [userTxnTag(userId)] },
+  );
+  const rows = (await fn(userId, limit)) as SerializedTx[];
   return rows.map(reviveDates);
 }
 
-// Count of unprocessed (categoryless) transactions for the inbox badge.
-export const getPendingCount = unstable_cache(
-  async () => {
-    return query(
-      "transactions.pending_count",
-      () => prisma.transaction.count({ where: { category: null } }),
-      (n) => ({ pending: n }),
-    );
-  },
-  ["transactions:pending-count:v1"],
-  { tags: [TAG_TRANSACTIONS] },
-);
-
-// Transactions within a specific cycle window. Cache key encodes the bounds
-// so a new cycle naturally misses the cache; mutations bust the tag.
-const getCycleTransactionsCached = unstable_cache(
-  async (startIso: string, endIso: string) => {
-    return query(
-      "transactions.cycle",
-      () =>
-        prisma.transaction.findMany({
-          where: {
-            occurredAt: { gte: new Date(startIso), lt: new Date(endIso) },
-          },
-          orderBy: { occurredAt: "desc" },
-        }),
-      (rows) => ({ rows: rows.length, startIso, endIso }),
-    );
-  },
-  ["transactions:cycle:v1"],
-  { tags: [TAG_TRANSACTIONS] },
-);
+export async function getPendingCount(userId: string): Promise<number> {
+  const fn = unstable_cache(
+    async (uid: string) => {
+      return query(
+        "transactions.pending_count",
+        () => prisma.transaction.count({ where: { userId: uid, category: null } }),
+        (n) => ({ pending: n, userId: uid }),
+      );
+    },
+    ["transactions:pending-count:v2", userId],
+    { tags: [userTxnTag(userId)] },
+  );
+  return fn(userId);
+}
 
 export async function getCycleTransactions(
+  userId: string,
   startIso: string,
   endIso: string,
 ): Promise<Transaction[]> {
-  const rows = (await getCycleTransactionsCached(
-    startIso,
-    endIso,
-  )) as SerializedTx[];
+  const fn = unstable_cache(
+    async (uid: string, s: string, e: string) => {
+      return query(
+        "transactions.cycle",
+        () =>
+          prisma.transaction.findMany({
+            where: {
+              userId: uid,
+              occurredAt: { gte: new Date(s), lt: new Date(e) },
+            },
+            orderBy: { occurredAt: "desc" },
+          }),
+        (rows) => ({ rows: rows.length, startIso: s, endIso: e, userId: uid }),
+      );
+    },
+    ["transactions:cycle:v2", userId],
+    { tags: [userTxnTag(userId)] },
+  );
+  const rows = (await fn(userId, startIso, endIso)) as SerializedTx[];
   return rows.map(reviveDates);
 }
 
-// Pending (uncategorized) list for the inbox page.
-const getPendingTransactionsCached = unstable_cache(
-  async () => {
-    return query(
-      "transactions.pending_list",
-      () =>
-        prisma.transaction.findMany({
-          where: { category: null },
-          orderBy: { occurredAt: "desc" },
-        }),
-      (rows) => ({ rows: rows.length }),
-    );
-  },
-  ["transactions:pending:v1"],
-  { tags: [TAG_TRANSACTIONS] },
-);
-
-export async function getPendingTransactions(): Promise<Transaction[]> {
-  const rows = (await getPendingTransactionsCached()) as SerializedTx[];
+export async function getPendingTransactions(userId: string): Promise<Transaction[]> {
+  const fn = unstable_cache(
+    async (uid: string) => {
+      return query(
+        "transactions.pending_list",
+        () =>
+          prisma.transaction.findMany({
+            where: { userId: uid, category: null },
+            orderBy: { occurredAt: "desc" },
+          }),
+        (rows) => ({ rows: rows.length, userId: uid }),
+      );
+    },
+    ["transactions:pending:v2", userId],
+    { tags: [userTxnTag(userId)] },
+  );
+  const rows = (await fn(userId)) as SerializedTx[];
   return rows.map(reviveDates);
 }
-
-// All transactions since a given ISO timestamp — used by the charts page
-// for multi-cycle trend lines.
-const getTransactionsSinceCached = unstable_cache(
-  async (sinceIso: string) => {
-    return query(
-      "transactions.since",
-      () =>
-        prisma.transaction.findMany({
-          where: { occurredAt: { gte: new Date(sinceIso) } },
-          orderBy: { occurredAt: "asc" },
-        }),
-      (rows) => ({ rows: rows.length, sinceIso }),
-    );
-  },
-  ["transactions:since:v1"],
-  { tags: [TAG_TRANSACTIONS] },
-);
 
 export async function getTransactionsSince(
+  userId: string,
   sinceIso: string,
 ): Promise<Transaction[]> {
-  const rows = (await getTransactionsSinceCached(sinceIso)) as SerializedTx[];
+  const fn = unstable_cache(
+    async (uid: string, since: string) => {
+      return query(
+        "transactions.since",
+        () =>
+          prisma.transaction.findMany({
+            where: { userId: uid, occurredAt: { gte: new Date(since) } },
+            orderBy: { occurredAt: "asc" },
+          }),
+        (rows) => ({ rows: rows.length, sinceIso: since, userId: uid }),
+      );
+    },
+    ["transactions:since:v2", userId],
+    { tags: [userTxnTag(userId)] },
+  );
+  const rows = (await fn(userId, sinceIso)) as SerializedTx[];
   return rows.map(reviveDates);
 }
 
-// Transactions in a specific calendar month [startIso, endIso) — drives the
-// month-detail view on the charts page.
-const getMonthTransactionsCached = unstable_cache(
-  async (startIso: string, endIso: string) => {
-    return query(
-      "transactions.month",
-      () =>
-        prisma.transaction.findMany({
-          where: {
-            occurredAt: { gte: new Date(startIso), lt: new Date(endIso) },
-          },
-          orderBy: { occurredAt: "desc" },
-        }),
-      (rows) => ({ rows: rows.length, startIso, endIso }),
-    );
-  },
-  ["transactions:month:v1"],
-  { tags: [TAG_TRANSACTIONS] },
-);
-
 export async function getMonthTransactions(
+  userId: string,
   startIso: string,
   endIso: string,
 ): Promise<Transaction[]> {
-  const rows = (await getMonthTransactionsCached(
-    startIso,
-    endIso,
-  )) as SerializedTx[];
+  const fn = unstable_cache(
+    async (uid: string, s: string, e: string) => {
+      return query(
+        "transactions.month",
+        () =>
+          prisma.transaction.findMany({
+            where: {
+              userId: uid,
+              occurredAt: { gte: new Date(s), lt: new Date(e) },
+            },
+            orderBy: { occurredAt: "desc" },
+          }),
+        (rows) => ({ rows: rows.length, startIso: s, endIso: e, userId: uid }),
+      );
+    },
+    ["transactions:month:v2", userId],
+    { tags: [userTxnTag(userId)] },
+  );
+  const rows = (await fn(userId, startIso, endIso)) as SerializedTx[];
   return rows.map(reviveDates);
 }
 
-const getIncomeEventsSinceCached = unstable_cache(
-  async (sinceIso: string) => {
-    return query(
-      "income_events.since",
-      () =>
-        prisma.incomeEvent.findMany({
-          where: { occurredAt: { gte: new Date(sinceIso) } },
-          orderBy: { occurredAt: "asc" },
-        }),
-      (rows) => ({ rows: rows.length, sinceIso }),
-    );
-  },
-  ["income-events:since:v1"],
-  { tags: [TAG_INCOME_EVENTS] },
-);
-
-export async function getIncomeEventsSince(
-  sinceIso: string,
-): Promise<IncomeEvent[]> {
-  const rows = (await getIncomeEventsSinceCached(
-    sinceIso,
-  )) as SerializedIncome[];
-  return rows.map(reviveIncomeDates);
-}
-
-// One-off income events (bonuses, windfalls) within a cycle window.
 type SerializedIncome = Omit<IncomeEvent, "occurredAt" | "createdAt"> & {
   occurredAt: string | Date;
   createdAt: string | Date;
@@ -223,31 +192,52 @@ function reviveIncomeDates(e: SerializedIncome): IncomeEvent {
   };
 }
 
-const getCycleIncomeEventsCached = unstable_cache(
-  async (startIso: string, endIso: string) => {
-    return query(
-      "income_events.cycle",
-      () =>
-        prisma.incomeEvent.findMany({
-          where: {
-            occurredAt: { gte: new Date(startIso), lt: new Date(endIso) },
-          },
-          orderBy: { occurredAt: "desc" },
-        }),
-      (rows) => ({ rows: rows.length, startIso, endIso }),
-    );
-  },
-  ["income-events:cycle:v1"],
-  { tags: [TAG_INCOME_EVENTS] },
-);
+export async function getIncomeEventsSince(
+  userId: string,
+  sinceIso: string,
+): Promise<IncomeEvent[]> {
+  const fn = unstable_cache(
+    async (uid: string, since: string) => {
+      return query(
+        "income_events.since",
+        () =>
+          prisma.incomeEvent.findMany({
+            where: { userId: uid, occurredAt: { gte: new Date(since) } },
+            orderBy: { occurredAt: "asc" },
+          }),
+        (rows) => ({ rows: rows.length, sinceIso: since, userId: uid }),
+      );
+    },
+    ["income-events:since:v2", userId],
+    { tags: [userIncomeTag(userId)] },
+  );
+  const rows = (await fn(userId, sinceIso)) as SerializedIncome[];
+  return rows.map(reviveIncomeDates);
+}
 
 export async function getCycleIncomeEvents(
+  userId: string,
   startIso: string,
   endIso: string,
 ): Promise<IncomeEvent[]> {
-  const rows = (await getCycleIncomeEventsCached(
-    startIso,
-    endIso,
-  )) as SerializedIncome[];
+  const fn = unstable_cache(
+    async (uid: string, s: string, e: string) => {
+      return query(
+        "income_events.cycle",
+        () =>
+          prisma.incomeEvent.findMany({
+            where: {
+              userId: uid,
+              occurredAt: { gte: new Date(s), lt: new Date(e) },
+            },
+            orderBy: { occurredAt: "desc" },
+          }),
+        (rows) => ({ rows: rows.length, startIso: s, endIso: e, userId: uid }),
+      );
+    },
+    ["income-events:cycle:v2", userId],
+    { tags: [userIncomeTag(userId)] },
+  );
+  const rows = (await fn(userId, startIso, endIso)) as SerializedIncome[];
   return rows.map(reviveIncomeDates);
 }

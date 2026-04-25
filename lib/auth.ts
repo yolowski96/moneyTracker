@@ -16,40 +16,34 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb);
 }
 
-// Authorizes against the Settings.apiToken first, then falls back to the
-// env API_TOKEN for backward compatibility with existing Shortcuts.
-export async function isAuthorized(req: NextRequest): Promise<boolean> {
+// Resolves the bearer token to a userId. Used by /api/transactions so that
+// webhook/Shortcut POSTs attribute the transaction to the right owner.
+export async function authUserIdFromBearer(req: NextRequest): Promise<string | null> {
   const presented = bearer(req);
   if (!presented) {
     log("auth", null, "no_bearer", "no bearer token on request", {
       hasAuthHeader: !!req.headers.get("authorization"),
       path: req.nextUrl.pathname,
     });
-    return false;
+    return null;
   }
 
-  const settings = await prisma.settings.findUnique({
-    where: { id: 1 },
-    select: { apiToken: true },
+  // apiToken is unique in the schema; a direct lookup is cheap and the
+  // timing-safe comparison covers the remaining attack surface (early-exit
+  // length mismatch is handled inside safeEqual).
+  const user = await prisma.user.findUnique({
+    where: { apiToken: presented },
+    select: { id: true, apiToken: true },
   });
-  if (settings?.apiToken && safeEqual(presented, settings.apiToken)) {
-    return true;
+
+  if (user?.apiToken && safeEqual(presented, user.apiToken)) {
+    return user.id;
   }
 
-  const envToken = process.env.API_TOKEN;
-  if (envToken && safeEqual(presented, envToken)) {
-    log("auth", null, "env_fallback", "authed via API_TOKEN env fallback", {
-      path: req.nextUrl.pathname,
-    });
-    return true;
-  }
-
-  log("auth", null, "bad_bearer", "presented token did not match", {
+  log("auth", null, "bad_bearer", "presented token did not match any user", {
     path: req.nextUrl.pathname,
-    hasSettingsToken: !!settings?.apiToken,
-    hasEnvToken: !!envToken,
   });
-  return false;
+  return null;
 }
 
 export function generateApiToken(): string {

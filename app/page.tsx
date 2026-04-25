@@ -10,8 +10,10 @@ import { AddIncomeForm } from "./add-income-form";
 import { ThemeToggle } from "./theme-toggle";
 import { MobileMenu } from "./mobile-menu";
 import { updateTag } from "next/cache";
-import { TAG_TRANSACTIONS, TAG_INCOME_EVENTS } from "@/lib/cache-tags";
+import { userTxnTag, userIncomeTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
+import { requireUser } from "@/lib/session";
+import { LogoutButton } from "./logout-button";
 import {
   getCycleIncomeEvents,
   getCycleTransactions,
@@ -46,10 +48,12 @@ function formatDayLabel(iso: string, locale: "en" | "bg") {
 }
 
 export default async function Home() {
-  const settingsPromise = getSettings();
-  const recentPromise = getRecentTransactions(200);
-  const pendingPromise = getPendingCount();
-  const categoriesPromise = getActiveCategories();
+  const { id: userId, email: userEmail } = await requireUser();
+
+  const settingsPromise = getSettings(userId);
+  const recentPromise = getRecentTransactions(userId, 200);
+  const pendingPromise = getPendingCount(userId);
+  const categoriesPromise = getActiveCategories(userId);
 
   const settings = await settingsPromise;
   const cycle = getCycleBounds(settings);
@@ -58,10 +62,10 @@ export default async function Home() {
 
   const [cycleTransactions, recentTransactions, pendingCount, cycleIncome, categories] =
     await Promise.all([
-      getCycleTransactions(cycle.start.toISOString(), cycle.end.toISOString()),
+      getCycleTransactions(userId, cycle.start.toISOString(), cycle.end.toISOString()),
       recentPromise,
       pendingPromise,
-      getCycleIncomeEvents(cycle.start.toISOString(), cycle.end.toISOString()),
+      getCycleIncomeEvents(userId, cycle.start.toISOString(), cycle.end.toISOString()),
       categoriesPromise,
     ]);
 
@@ -70,7 +74,7 @@ export default async function Home() {
   const allCategoriesForLookup = await Promise.all(
     [...new Set(cycleTransactions.map((t) => t.category).filter(Boolean) as string[])]
       .filter((id) => !categoryById.has(id))
-      .map((id) => getCategory(id)),
+      .map((id) => getCategory(userId, id)),
   );
   for (const c of allCategoriesForLookup) {
     if (c) categoryById.set(c.id, c);
@@ -92,6 +96,8 @@ export default async function Home() {
 
   async function addTransaction(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const amount = Number(formData.get("amount"));
     const merchant = String(formData.get("merchant") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
@@ -99,16 +105,26 @@ export default async function Home() {
       log("action.addTransaction", 400, "invalid_input", "rejected form submission", {
         amountRaw: formData.get("amount"),
         merchantLen: merchant.length,
+        userId: uid,
       });
       return;
     }
-    const settingsRow = await getSettings();
+    const settingsRow = await getSettings(uid);
+    let categoryId: string | null = null;
+    if (category) {
+      const cat = await prisma.category.findFirst({
+        where: { id: category, userId: uid },
+        select: { id: true },
+      });
+      categoryId = cat?.id ?? null;
+    }
     const row = await prisma.transaction.create({
       data: {
+        userId: uid,
         amount: Math.round(amount * 100),
         currency: settingsRow.currency,
         merchant,
-        category: category || null,
+        category: categoryId,
         source: "web",
       },
     });
@@ -117,35 +133,48 @@ export default async function Home() {
       amount: row.amount,
       merchant: row.merchant,
       category: row.category,
+      userId: uid,
     });
-    updateTag(TAG_TRANSACTIONS);
+    updateTag(userTxnTag(uid));
   }
 
   async function deleteTransaction(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     if (!id) {
       log("action.deleteTransaction", 400, "missing_id", "no id in form");
       return;
     }
-    await prisma.transaction.delete({ where: { id } });
-    log("action.deleteTransaction", 200, "deleted", `transaction ${id}`, { id });
-    updateTag(TAG_TRANSACTIONS);
+    const result = await prisma.transaction.deleteMany({
+      where: { id, userId: uid },
+    });
+    log("action.deleteTransaction", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `transaction ${id}`, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userTxnTag(uid));
   }
 
   async function addIncomeEvent(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const amount = Number(formData.get("amount"));
     const note = String(formData.get("note") ?? "").trim();
     if (!Number.isFinite(amount) || amount <= 0) {
       log("action.addIncomeEvent", 400, "invalid_amount", "rejected form submission", {
         amountRaw: formData.get("amount"),
+        userId: uid,
       });
       return;
     }
-    const settingsRow = await getSettings();
+    const settingsRow = await getSettings(uid);
     const row = await prisma.incomeEvent.create({
       data: {
+        userId: uid,
         amount: Math.round(amount * 100),
         currency: settingsRow.currency,
         note: note || null,
@@ -155,20 +184,29 @@ export default async function Home() {
       id: row.id,
       amount: row.amount,
       note: row.note,
+      userId: uid,
     });
-    updateTag(TAG_INCOME_EVENTS);
+    updateTag(userIncomeTag(uid));
   }
 
   async function deleteIncomeEvent(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     if (!id) {
       log("action.deleteIncomeEvent", 400, "missing_id", "no id in form");
       return;
     }
-    await prisma.incomeEvent.delete({ where: { id } });
-    log("action.deleteIncomeEvent", 200, "deleted", `income event ${id}`, { id });
-    updateTag(TAG_INCOME_EVENTS);
+    const result = await prisma.incomeEvent.deleteMany({
+      where: { id, userId: uid },
+    });
+    log("action.deleteIncomeEvent", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `income event ${id}`, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userIncomeTag(uid));
   }
 
   return (
@@ -178,6 +216,8 @@ export default async function Home() {
           <MobileMenu
             ariaLabel={t(locale, "menu")}
             title={t(locale, "appName")}
+            userEmail={userEmail}
+            signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/inbox", label: t(locale, "inbox"), badge: pendingCount },
               { href: "/charts", label: t(locale, "charts") },
@@ -222,6 +262,7 @@ export default async function Home() {
             >
               {t(locale, "settings")}
             </Link>
+            <LogoutButton label={t(locale, "signOut")} />
             <ThemeToggle />
           </nav>
         </div>

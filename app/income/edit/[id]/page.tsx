@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { TAG_INCOME_EVENTS } from "@/lib/cache-tags";
+import { userIncomeTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { getSettings } from "@/lib/cycle";
+import { requireUserId } from "@/lib/session";
 import { t } from "@/lib/i18n";
 import { currencySymbol } from "@/lib/format";
 import { ThemeToggle } from "../../../theme-toggle";
@@ -17,17 +18,20 @@ type PageProps = {
 };
 
 export default async function EditIncomePage({ params }: PageProps) {
+  const userId = await requireUserId();
   const { id } = await params;
 
   const [income, settings] = await Promise.all([
-    prisma.incomeEvent.findUnique({ where: { id } }),
-    getSettings(),
+    prisma.incomeEvent.findFirst({ where: { id, userId } }),
+    getSettings(userId),
   ]);
   if (!income) notFound();
   const locale = settings.locale;
 
   async function save(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
 
     const id = String(formData.get("id") ?? "");
     if (!id) {
@@ -56,8 +60,8 @@ export default async function EditIncomePage({ params }: PageProps) {
       return;
     }
 
-    await prisma.incomeEvent.update({
-      where: { id },
+    const result = await prisma.incomeEvent.updateMany({
+      where: { id, userId: uid },
       data: {
         amount: Math.round(amount * 100),
         note: note || null,
@@ -65,26 +69,36 @@ export default async function EditIncomePage({ params }: PageProps) {
       },
     });
 
-    log("action.income.edit.save", 200, "updated", `income event ${id}`, {
+    log("action.income.edit.save", result.count ? 200 : 404, result.count ? "updated" : "not_owned", `income event ${id}`, {
       id,
       amount: Math.round(amount * 100),
       note: note || null,
+      userId: uid,
+      count: result.count,
     });
 
-    updateTag(TAG_INCOME_EVENTS);
+    updateTag(userIncomeTag(uid));
     redirect("/");
   }
 
   async function remove(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     if (!id) {
       log("action.income.edit.remove", 400, "missing_id", "no id in form");
       return;
     }
-    await prisma.incomeEvent.delete({ where: { id } });
-    log("action.income.edit.remove", 200, "deleted", `income event ${id}`, { id });
-    updateTag(TAG_INCOME_EVENTS);
+    const result = await prisma.incomeEvent.deleteMany({
+      where: { id, userId: uid },
+    });
+    log("action.income.edit.remove", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `income event ${id}`, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userIncomeTag(uid));
     redirect("/");
   }
 

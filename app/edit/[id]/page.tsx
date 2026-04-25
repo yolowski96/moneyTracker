@@ -3,9 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getActiveCategories } from "@/lib/categories";
-import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import { userTxnTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { getSettings } from "@/lib/cycle";
+import { requireUserId } from "@/lib/session";
 import { t } from "@/lib/i18n";
 import { currencySymbol } from "@/lib/format";
 import { ThemeToggle } from "../../theme-toggle";
@@ -19,20 +20,23 @@ type PageProps = {
 };
 
 export default async function EditPage({ params, searchParams }: PageProps) {
+  const userId = await requireUserId();
   const { id } = await params;
   const { from } = await searchParams;
   const returnTo = from === "inbox" ? "/inbox" : "/";
 
   const [transaction, settings, categories] = await Promise.all([
-    prisma.transaction.findUnique({ where: { id } }),
-    getSettings(),
-    getActiveCategories(),
+    prisma.transaction.findFirst({ where: { id, userId } }),
+    getSettings(userId),
+    getActiveCategories(userId),
   ]);
   if (!transaction) notFound();
   const locale = settings.locale;
 
   async function save(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
 
     const id = String(formData.get("id") ?? "");
     if (!id) {
@@ -58,7 +62,9 @@ export default async function EditPage({ params, searchParams }: PageProps) {
 
     let categoryValid = false;
     if (category) {
-      const cat = await prisma.category.findUnique({ where: { id: category } });
+      const cat = await prisma.category.findFirst({
+        where: { id: category, userId: uid },
+      });
       categoryValid = !!cat;
     }
     const occurredAt = occurredAtRaw
@@ -72,8 +78,8 @@ export default async function EditPage({ params, searchParams }: PageProps) {
       return;
     }
 
-    await prisma.transaction.update({
-      where: { id },
+    const result = await prisma.transaction.updateMany({
+      where: { id, userId: uid },
       data: {
         amount: Math.round(amount * 100),
         merchant,
@@ -83,32 +89,40 @@ export default async function EditPage({ params, searchParams }: PageProps) {
       },
     });
 
-    log("action.edit.save", 200, "updated", `transaction ${id}`, {
+    log("action.edit.save", result.count ? 200 : 404, result.count ? "updated" : "not_owned", `transaction ${id}`, {
       id,
       merchant,
       category: categoryValid ? category : null,
       amount: Math.round(amount * 100),
       returnTo: returnToRaw,
+      userId: uid,
+      count: result.count,
     });
 
-    updateTag(TAG_TRANSACTIONS);
+    updateTag(userTxnTag(uid));
     redirect(returnToRaw === "/inbox" ? "/inbox" : "/");
   }
 
   async function remove(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     const returnToRaw = String(formData.get("returnTo") ?? "/");
     if (!id) {
       log("action.edit.remove", 400, "missing_id", "no id in form");
       return;
     }
-    await prisma.transaction.delete({ where: { id } });
-    log("action.edit.remove", 200, "deleted", `transaction ${id}`, {
+    const result = await prisma.transaction.deleteMany({
+      where: { id, userId: uid },
+    });
+    log("action.edit.remove", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `transaction ${id}`, {
       id,
       returnTo: returnToRaw,
+      userId: uid,
+      count: result.count,
     });
-    updateTag(TAG_TRANSACTIONS);
+    updateTag(userTxnTag(uid));
     redirect(returnToRaw === "/inbox" ? "/inbox" : "/");
   }
 

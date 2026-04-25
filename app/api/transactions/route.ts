@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { isAuthorized } from "@/lib/auth";
+import { authUserIdFromBearer } from "@/lib/auth";
 import { toCents } from "@/lib/money";
-import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import { userTxnTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { getSettings } from "@/lib/cycle";
 
@@ -36,7 +36,8 @@ function fail(
 
 export async function GET(req: NextRequest) {
   const started = Date.now();
-  if (!(await isAuthorized(req))) {
+  const userId = await authUserIdFromBearer(req);
+  if (!userId) {
     log(SCOPE_GET, 401, "unauthorized", "missing or invalid bearer token", {
       hasAuthHeader: !!req.headers.get("authorization"),
     });
@@ -47,16 +48,19 @@ export async function GET(req: NextRequest) {
 
   try {
     const transactions = await prisma.transaction.findMany({
+      where: { userId },
       orderBy: { occurredAt: "desc" },
       take: limit,
     });
     log(SCOPE_GET, 200, "ok", `returned ${transactions.length} transactions`, {
+      userId,
       limit,
       ms: Date.now() - started,
     });
     return NextResponse.json({ transactions });
   } catch (err) {
     log(SCOPE_GET, 500, "db_error", "transaction list query failed", {
+      userId,
       error: (err as Error).message,
       ms: Date.now() - started,
     });
@@ -67,7 +71,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const started = Date.now();
 
-  if (!(await isAuthorized(req))) {
+  const userId = await authUserIdFromBearer(req);
+  if (!userId) {
     log(SCOPE_POST, 401, "unauthorized", "missing or invalid bearer token", {
       hasAuthHeader: !!req.headers.get("authorization"),
     });
@@ -117,24 +122,39 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const settings = await getSettings();
+  const settings = await getSettings(userId);
+
+  // Validate provided category belongs to this user; otherwise drop it.
+  let categoryId: string | null = null;
+  if (body.category) {
+    const candidate = String(body.category).trim();
+    if (candidate) {
+      const cat = await prisma.category.findFirst({
+        where: { id: candidate, userId },
+        select: { id: true },
+      });
+      categoryId = cat?.id ?? null;
+    }
+  }
 
   try {
     const transaction = await prisma.transaction.create({
       data: {
+        userId,
         amount: cents,
         currency: (body.currency as string) ?? settings.currency,
         merchant: merchantStr,
-        category: body.category ? String(body.category).trim() : null,
+        category: categoryId,
         note: body.note ? String(body.note).trim() : null,
         source: (body.source as string) ?? "manual",
         occurredAt,
       },
     });
 
-    revalidateTag(TAG_TRANSACTIONS, "max");
+    revalidateTag(userTxnTag(userId), "max");
     log(SCOPE_POST, 201, "created", `transaction ${transaction.id}`, {
       id: transaction.id,
+      userId,
       amount: cents,
       currency: transaction.currency,
       merchant: merchantStr,
@@ -145,6 +165,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (err) {
     log(SCOPE_POST, 500, "db_error", "transaction create failed", {
+      userId,
       error: (err as Error).message,
       ms: Date.now() - started,
     });

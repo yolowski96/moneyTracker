@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { log } from "@/lib/log";
+import { requireUser } from "@/lib/session";
 import { ChartsView } from "../charts-view";
 
 type PageProps = { params: Promise<{ month: string }> };
@@ -13,9 +14,8 @@ function parseMonth(raw: string): Date | null {
   return new Date(y, m - 1, 1);
 }
 
-// ISR: each unique /charts/YYYY-MM is cached after first render and refreshed
-// on tag bust (mutations invalidate TAG_TRANSACTIONS etc.) or after an hour.
-export const revalidate = 3600;
+// Per-user dynamic render: cache layer below already memoizes by userId.
+export const dynamic = "force-dynamic";
 
 export default async function ChartsMonthPage({ params }: PageProps) {
   const { month } = await params;
@@ -26,5 +26,6 @@ export default async function ChartsMonthPage({ params }: PageProps) {
     });
     notFound();
   }
-  return <ChartsView monthAnchor={anchor} />;
+  const { id, email } = await requireUser();
+  return <ChartsView userId={id} userEmail={email} monthAnchor={anchor} />;
 }

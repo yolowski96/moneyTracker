@@ -3,25 +3,30 @@ import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { formatAmount, formatDateTime } from "@/lib/format";
 import { getActiveCategories } from "@/lib/categories";
-import { TAG_TRANSACTIONS } from "@/lib/cache-tags";
+import { userTxnTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { getPendingTransactions } from "@/lib/queries";
 import { getSettings } from "@/lib/cycle";
+import { requireUser } from "@/lib/session";
+import { LogoutButton } from "../logout-button";
 import { t } from "@/lib/i18n";
 import { ThemeToggle } from "../theme-toggle";
 import { MobileMenu } from "../mobile-menu";
 import { PendingRow } from "./pending-row";
 
 export default async function InboxPage() {
+  const { id: userId, email: userEmail } = await requireUser();
   const [pending, settings, categories] = await Promise.all([
-    getPendingTransactions(),
-    getSettings(),
-    getActiveCategories(),
+    getPendingTransactions(userId),
+    getSettings(userId),
+    getActiveCategories(userId),
   ]);
   const locale = settings.locale;
 
   async function setCategory(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     const categoryId = String(formData.get("categoryId") ?? "");
     if (!id || !categoryId) {
@@ -31,35 +36,48 @@ export default async function InboxPage() {
       });
       return;
     }
-    const cat = await prisma.category.findUnique({ where: { id: categoryId } });
+    const cat = await prisma.category.findFirst({
+      where: { id: categoryId, userId: uid },
+    });
     if (!cat) {
-      log("action.inbox.setCategory", 400, "unknown_category", `${categoryId} is not a known category`, {
+      log("action.inbox.setCategory", 400, "unknown_category", `${categoryId} not owned by user`, {
         categoryId,
         id,
+        userId: uid,
       });
       return;
     }
-    await prisma.transaction.update({
-      where: { id },
+    const result = await prisma.transaction.updateMany({
+      where: { id, userId: uid },
       data: { category: categoryId },
     });
-    log("action.inbox.setCategory", 200, "categorized", `transaction ${id} -> ${categoryId}`, {
+    log("action.inbox.setCategory", result.count ? 200 : 404, result.count ? "categorized" : "not_owned", `transaction ${id} -> ${categoryId}`, {
       id,
       categoryId,
+      userId: uid,
+      count: result.count,
     });
-    updateTag(TAG_TRANSACTIONS);
+    updateTag(userTxnTag(uid));
   }
 
   async function deletePending(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     if (!id) {
       log("action.inbox.deletePending", 400, "missing_id", "no id in form");
       return;
     }
-    await prisma.transaction.delete({ where: { id } });
-    log("action.inbox.deletePending", 200, "deleted", `transaction ${id}`, { id });
-    updateTag(TAG_TRANSACTIONS);
+    const result = await prisma.transaction.deleteMany({
+      where: { id, userId: uid },
+    });
+    log("action.inbox.deletePending", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `transaction ${id}`, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userTxnTag(uid));
   }
 
   return (
@@ -69,6 +87,8 @@ export default async function InboxPage() {
           <MobileMenu
             ariaLabel={t(locale, "menu")}
             title={t(locale, "appName")}
+            userEmail={userEmail}
+            signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/", label: t(locale, "appName") },
               { href: "/charts", label: t(locale, "charts") },
@@ -106,6 +126,7 @@ export default async function InboxPage() {
             >
               {"\u2190"} {t(locale, "back")}
             </Link>
+            <LogoutButton label={t(locale, "signOut")} />
             <ThemeToggle />
           </nav>
         </div>

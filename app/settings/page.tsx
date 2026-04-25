@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getSettings, getCycleBounds, type Period } from "@/lib/cycle";
 import { getAllCategories } from "@/lib/categories";
 import { generateApiToken } from "@/lib/auth";
+import { requireUserId } from "@/lib/session";
 import {
-  TAG_SETTINGS,
-  TAG_TRANSACTIONS,
-  TAG_CATEGORIES,
+  userSettingsTag,
+  userTxnTag,
+  userCategoriesTag,
 } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
@@ -18,6 +19,7 @@ import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
 import { ThemeToggle } from "../theme-toggle";
 import { MobileMenu } from "../mobile-menu";
+import { LogoutButton } from "../logout-button";
 
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_BG = ["нед", "пон", "вто", "сря", "чет", "пет", "съб"];
@@ -31,9 +33,11 @@ const MONTHS_BG = [
 ];
 
 export default async function SettingsPage() {
-  const [settings, categories] = await Promise.all([
-    getSettings(),
-    getAllCategories(),
+  const userId = await requireUserId();
+  const [settings, categories, user] = await Promise.all([
+    getSettings(userId),
+    getAllCategories(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { apiToken: true, email: true } }),
   ]);
   const cycle = getCycleBounds(settings);
   const locale = settings.locale;
@@ -50,6 +54,8 @@ export default async function SettingsPage() {
 
   async function save(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
 
     const period = String(formData.get("period") ?? "month") as Period;
     const monthlyResetDay = clamp(
@@ -92,48 +98,49 @@ export default async function SettingsPage() {
       currency: isCurrency(currencyRaw) ? currencyRaw : "EUR",
     };
     await prisma.settings.upsert({
-      where: { id: 1 },
+      where: { userId: uid },
       update: data,
-      create: { id: 1, ...data },
+      create: { userId: uid, ...data },
     });
 
     log("action.settings.save", 200, "saved", `period=${data.period}`, {
+      userId: uid,
       period: data.period,
       incomeAmount: data.incomeAmount,
-      monthlyResetDay: data.monthlyResetDay,
-      weeklyResetDay: data.weeklyResetDay,
-      yearlyResetMonth: data.yearlyResetMonth,
-      yearlyResetDay: data.yearlyResetDay,
       locale: data.locale,
       currency: data.currency,
     });
 
-    updateTag(TAG_SETTINGS);
-    updateTag(TAG_TRANSACTIONS);
+    updateTag(userSettingsTag(uid));
+    updateTag(userTxnTag(uid));
     redirect("/");
   }
 
   async function regenerateApiToken() {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const token = generateApiToken();
-    const previous = await prisma.settings.findUnique({
-      where: { id: 1 },
+    const previous = await prisma.user.findUnique({
+      where: { id: uid },
       select: { apiToken: true },
     });
-    await prisma.settings.upsert({
-      where: { id: 1 },
-      update: { apiToken: token },
-      create: { id: 1, apiToken: token },
+    await prisma.user.update({
+      where: { id: uid },
+      data: { apiToken: token },
     });
     log("action.settings.regenerateApiToken", 200, previous?.apiToken ? "rotated" : "generated", "api token updated", {
+      userId: uid,
       hadPrevious: !!previous?.apiToken,
       tokenPreview: token.slice(0, 4) + "…" + token.slice(-4),
     });
-    updateTag(TAG_SETTINGS);
+    updateTag(userSettingsTag(uid));
   }
 
   async function addCategory(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const emoji = String(formData.get("emoji") ?? "").trim();
     const label = String(formData.get("label") ?? "").trim();
     if (!emoji || !label) {
@@ -141,10 +148,12 @@ export default async function SettingsPage() {
       return;
     }
     const maxPos = await prisma.category.aggregate({
+      where: { userId: uid },
       _max: { position: true },
     });
     await prisma.category.create({
       data: {
+        userId: uid,
         emoji,
         label,
         position: (maxPos._max.position ?? 0) + 1,
@@ -153,12 +162,15 @@ export default async function SettingsPage() {
     log("action.settings.addCategory", 200, "created", `${emoji} ${label}`, {
       emoji,
       label,
+      userId: uid,
     });
-    updateTag(TAG_CATEGORIES);
+    updateTag(userCategoriesTag(uid));
   }
 
   async function renameCategory(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     const emoji = String(formData.get("emoji") ?? "").trim();
     const label = String(formData.get("label") ?? "").trim();
@@ -166,40 +178,46 @@ export default async function SettingsPage() {
       log("action.settings.renameCategory", 400, "missing_input", "id, emoji, or label missing");
       return;
     }
-    await prisma.category.update({
-      where: { id },
+    const result = await prisma.category.updateMany({
+      where: { id, userId: uid },
       data: { emoji, label },
     });
-    log("action.settings.renameCategory", 200, "renamed", `${id} -> ${emoji} ${label}`, {
+    log("action.settings.renameCategory", result.count ? 200 : 404, result.count ? "renamed" : "not_owned", `${id} -> ${emoji} ${label}`, {
       id,
       emoji,
       label,
+      userId: uid,
+      count: result.count,
     });
-    updateTag(TAG_CATEGORIES);
+    updateTag(userCategoriesTag(uid));
   }
 
   async function archiveCategory(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     if (!id) return;
-    await prisma.category.update({
-      where: { id },
+    await prisma.category.updateMany({
+      where: { id, userId: uid },
       data: { archived: true },
     });
-    log("action.settings.archiveCategory", 200, "archived", id, { id });
-    updateTag(TAG_CATEGORIES);
+    log("action.settings.archiveCategory", 200, "archived", id, { id, userId: uid });
+    updateTag(userCategoriesTag(uid));
   }
 
   async function restoreCategory(formData: FormData) {
     "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
     const id = String(formData.get("id") ?? "");
     if (!id) return;
-    await prisma.category.update({
-      where: { id },
+    await prisma.category.updateMany({
+      where: { id, userId: uid },
       data: { archived: false },
     });
-    log("action.settings.restoreCategory", 200, "restored", id, { id });
-    updateTag(TAG_CATEGORIES);
+    log("action.settings.restoreCategory", 200, "restored", id, { id, userId: uid });
+    updateTag(userCategoriesTag(uid));
   }
 
   return (
@@ -209,6 +227,8 @@ export default async function SettingsPage() {
           <MobileMenu
             ariaLabel={t(locale, "menu")}
             title={t(locale, "appName")}
+            userEmail={user?.email ?? null}
+            signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/", label: t(locale, "appName") },
               { href: "/inbox", label: t(locale, "inbox") },
@@ -228,6 +248,11 @@ export default async function SettingsPage() {
             <p className="mt-1 text-sm text-[color:var(--muted)]">
               {t(locale, "settingsTagline")}
             </p>
+            {user?.email && (
+              <p className="mt-1 text-xs text-[color:var(--muted)]">
+                {user.email}
+              </p>
+            )}
           </div>
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
             <Link
@@ -248,6 +273,7 @@ export default async function SettingsPage() {
             >
               {"\u2190"} {t(locale, "back")}
             </Link>
+            <LogoutButton label={t(locale, "signOut")} />
             <ThemeToggle />
           </nav>
         </div>
@@ -362,7 +388,7 @@ export default async function SettingsPage() {
                 {t(locale, "apiAccess")}
               </div>
               <div className="mt-0.5 text-[color:var(--muted)]">
-                {settings.apiToken ? t(locale, "keyConfigured") : t(locale, "noKeyYet")}
+                {user?.apiToken ? t(locale, "keyConfigured") : t(locale, "noKeyYet")}
               </div>
             </div>
             <span
@@ -378,7 +404,7 @@ export default async function SettingsPage() {
               <code className="font-mono text-xs">/api/transactions</code>.
             </p>
             <ApiKeyCard
-              token={settings.apiToken}
+              token={user?.apiToken ?? null}
               labels={{
                 yourKey: t(locale, "apiKeyHeader"),
                 noKeyYet: t(locale, "noKeyYet"),

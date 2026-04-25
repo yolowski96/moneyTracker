@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { logoutAction } from "./actions";
 
 export type MobileMenuItem = {
   href: string;
@@ -13,10 +14,14 @@ export function MobileMenu({
   items,
   ariaLabel,
   title,
+  userEmail,
+  signOutLabel,
 }: {
   items: MobileMenuItem[];
   ariaLabel: string;
   title: string;
+  userEmail?: string | null;
+  signOutLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -74,7 +79,7 @@ export function MobileMenu({
         aria-modal="true"
         aria-label={ariaLabel}
         className={
-          "fixed inset-y-0 left-0 z-50 w-72 max-w-[80vw] transform border-r border-[color:var(--border)] bg-[color:var(--background)] shadow-xl transition-transform duration-200 ease-out sm:hidden " +
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[80vw] transform flex-col border-r border-[color:var(--border)] bg-[color:var(--background)] shadow-xl transition-transform duration-200 ease-out sm:hidden " +
           (open ? "translate-x-0" : "-translate-x-full")
         }
       >
@@ -101,7 +106,7 @@ export function MobileMenu({
             </svg>
           </button>
         </div>
-        <nav className="flex flex-col p-2">
+        <nav className="flex flex-1 flex-col p-2">
           {items.map((it) => (
             <Link
               key={it.href}
@@ -118,6 +123,23 @@ export function MobileMenu({
             </Link>
           ))}
         </nav>
+        {(userEmail || signOutLabel) && (
+          <div className="border-t border-[color:var(--border)] p-3">
+            {userEmail && (
+              <div className="mb-2 truncate px-3 text-xs text-[color:var(--muted)]">
+                {userEmail}
+              </div>
+            )}
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="w-full rounded px-3 py-2 text-left text-sm text-[color:var(--muted)] hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)]"
+              >
+                {signOutLabel ?? "Sign out"}
+              </button>
+            </form>
+          </div>
+        )}
       </aside>
     </>
   );

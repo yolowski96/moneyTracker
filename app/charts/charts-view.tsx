@@ -19,6 +19,7 @@ import {
 import { log } from "@/lib/log";
 import { ThemeToggle } from "../theme-toggle";
 import { MobileMenu } from "../mobile-menu";
+import { LogoutButton } from "../logout-button";
 
 const MONTHS_OF_HISTORY = 12;
 
@@ -70,13 +71,17 @@ function topMerchants(txns: Transaction[], limit = 5) {
 }
 
 export async function ChartsView({
+  userId,
+  userEmail,
   monthAnchor,
 }: {
+  userId: string;
+  userEmail: string | null;
   monthAnchor: Date | null;
 }) {
   const [settings, allCategories] = await Promise.all([
-    getSettings(),
-    getAllCategories(),
+    getSettings(userId),
+    getAllCategories(userId),
   ]);
   const cycle = getCycleBounds(settings);
   const locale = settings.locale;
@@ -99,11 +104,11 @@ export async function ChartsView({
     // Cycle view: skip this query when we're in month-detail mode.
     monthStart
       ? Promise.resolve([] as Transaction[])
-      : getCycleTransactions(cycle.start.toISOString(), cycle.end.toISOString()),
-    getTransactionsSince(trendStart.toISOString()),
-    getIncomeEventsSince(trendStart.toISOString()),
+      : getCycleTransactions(userId, cycle.start.toISOString(), cycle.end.toISOString()),
+    getTransactionsSince(userId, trendStart.toISOString()),
+    getIncomeEventsSince(userId, trendStart.toISOString()),
     monthStart && monthEnd
-      ? getMonthTransactions(monthStart.toISOString(), monthEnd.toISOString())
+      ? getMonthTransactions(userId, monthStart.toISOString(), monthEnd.toISOString())
       : Promise.resolve([] as Transaction[]),
   ]);
 
@@ -200,6 +205,8 @@ export async function ChartsView({
           <MobileMenu
             ariaLabel={t(locale, "menu")}
             title={t(locale, "appName")}
+            userEmail={userEmail}
+            signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/", label: t(locale, "appName") },
               { href: "/inbox", label: t(locale, "inbox") },
@@ -239,6 +246,7 @@ export async function ChartsView({
             >
               {"\u2190"} {t(locale, "back")}
             </Link>
+            <LogoutButton label={t(locale, "signOut")} />
             <ThemeToggle />
           </nav>
         </div>
