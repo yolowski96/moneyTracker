@@ -19,7 +19,7 @@ export function isCurrency(x: unknown): x is Currency {
 const STRINGS = {
   en: {
     // Header / nav
-    appName: "EuroTrack",
+    appName: "Bankopolis",
     tagline: "A minimal money tracker.",
     inbox: "Inbox",
     charts: "Charts",
@@ -172,7 +172,7 @@ const STRINGS = {
   },
   bg: {
     // Header / nav
-    appName: "EuroTrack",
+    appName: "Bankopolis",
     tagline: "Минималистичен тракер за пари.",
     inbox: "Входящи",
     charts: "Графики",

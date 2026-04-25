@@ -66,7 +66,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-16">
       <header className="mb-8 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">EuroTrack</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Bankopolis</h1>
         <p className="mt-1 text-sm text-[color:var(--muted)]">
           Create your account.
         </p>

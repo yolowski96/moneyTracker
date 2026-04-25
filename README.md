@@ -1,4 +1,4 @@
-# EuroTrack
+# Bankopolis
 
 A minimal, Notion-styled money tracker you run yourself. SQLite + Next.js. Quick-add on the web, or POST from an iOS Shortcut after an Apple Wallet purchase.
 

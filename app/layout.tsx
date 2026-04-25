@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EuroTrack",
+  title: "Bankopolis",
   description: "A minimal money tracker",
 };
 
