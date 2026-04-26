@@ -18,8 +18,10 @@ import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
 import { ThemeToggle } from "../theme-toggle";
+import { InboxBell } from "../inbox-bell";
 import { MobileMenu } from "../mobile-menu";
-import { LogoutButton } from "../logout-button";
+import { LogoutIcon } from "../logout-icon";
+import { getPendingCount } from "@/lib/queries";
 
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_BG = ["нед", "пон", "вто", "сря", "чет", "пет", "съб"];
@@ -34,10 +36,11 @@ const MONTHS_BG = [
 
 export default async function SettingsPage() {
   const userId = await requireUserId();
-  const [settings, categories, user] = await Promise.all([
+  const [settings, categories, user, pendingCount] = await Promise.all([
     getSettings(userId),
     getAllCategories(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { apiToken: true, email: true } }),
+    getPendingCount(userId),
   ]);
   const cycle = getCycleBounds(settings);
   const locale = settings.locale;
@@ -231,14 +234,16 @@ export default async function SettingsPage() {
             signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/", label: t(locale, "appName") },
-              { href: "/inbox", label: t(locale, "inbox") },
               { href: "/charts", label: t(locale, "charts") },
             ]}
           />
           <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
             {t(locale, "appName")}
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
+            <ThemeToggle />
+          </div>
         </div>
         <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
@@ -256,12 +261,6 @@ export default async function SettingsPage() {
           </div>
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
             <Link
-              href="/inbox"
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "inbox")}
-            </Link>
-            <Link
               href="/charts"
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
@@ -273,8 +272,9 @@ export default async function SettingsPage() {
             >
               {"\u2190"} {t(locale, "back")}
             </Link>
-            <LogoutButton label={t(locale, "signOut")} />
+            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
             <ThemeToggle />
+            <LogoutIcon ariaLabel={t(locale, "signOut")} />
           </nav>
         </div>
       </header>

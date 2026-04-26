@@ -8,7 +8,7 @@ import { log } from "@/lib/log";
 import { getPendingTransactions } from "@/lib/queries";
 import { getSettings } from "@/lib/cycle";
 import { requireUser } from "@/lib/session";
-import { LogoutButton } from "../logout-button";
+import { LogoutIcon } from "../logout-icon";
 import { t } from "@/lib/i18n";
 import { ThemeToggle } from "../theme-toggle";
 import { MobileMenu } from "../mobile-menu";
@@ -126,8 +126,8 @@ export default async function InboxPage() {
             >
               {"\u2190"} {t(locale, "back")}
             </Link>
-            <LogoutButton label={t(locale, "signOut")} />
             <ThemeToggle />
+            <LogoutIcon ariaLabel={t(locale, "signOut")} />
           </nav>
         </div>
       </header>

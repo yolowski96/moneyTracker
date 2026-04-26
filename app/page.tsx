@@ -8,12 +8,13 @@ import { bcp47, currencySymbol } from "@/lib/format";
 import { AddTransactionForm } from "./add-form";
 import { AddIncomeForm } from "./add-income-form";
 import { ThemeToggle } from "./theme-toggle";
+import { InboxBell } from "./inbox-bell";
 import { MobileMenu } from "./mobile-menu";
 import { updateTag } from "next/cache";
 import { userTxnTag, userIncomeTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { requireUser } from "@/lib/session";
-import { LogoutButton } from "./logout-button";
+import { LogoutIcon } from "./logout-icon";
 import {
   getCycleIncomeEvents,
   getCycleTransactions,
@@ -219,7 +220,6 @@ export default async function Home() {
             userEmail={userEmail}
             signOutLabel={t(locale, "signOut")}
             items={[
-              { href: "/inbox", label: t(locale, "inbox"), badge: pendingCount },
               { href: "/charts", label: t(locale, "charts") },
               { href: "/settings", label: t(locale, "settings") },
             ]}
@@ -227,7 +227,10 @@ export default async function Home() {
           <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
             {t(locale, "appName")}
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
+            <ThemeToggle />
+          </div>
         </div>
         <div className="mt-6 sm:mt-0 sm:flex sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0">
@@ -240,17 +243,6 @@ export default async function Home() {
           </div>
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
             <Link
-              href="/inbox"
-              className="relative text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "inbox")}
-              {pendingCount > 0 && (
-                <span className="ml-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white tabular-nums">
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
-            <Link
               href="/charts"
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
@@ -262,8 +254,9 @@ export default async function Home() {
             >
               {t(locale, "settings")}
             </Link>
-            <LogoutButton label={t(locale, "signOut")} />
+            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
             <ThemeToggle />
+            <LogoutIcon ariaLabel={t(locale, "signOut")} />
           </nav>
         </div>
       </header>

@@ -15,11 +15,13 @@ import {
   getMonthTransactions,
   getTransactionsSince,
   getIncomeEventsSince,
+  getPendingCount,
 } from "@/lib/queries";
 import { log } from "@/lib/log";
 import { ThemeToggle } from "../theme-toggle";
+import { InboxBell } from "../inbox-bell";
 import { MobileMenu } from "../mobile-menu";
-import { LogoutButton } from "../logout-button";
+import { LogoutIcon } from "../logout-icon";
 
 const MONTHS_OF_HISTORY = 12;
 
@@ -79,9 +81,10 @@ export async function ChartsView({
   userEmail: string | null;
   monthAnchor: Date | null;
 }) {
-  const [settings, allCategories] = await Promise.all([
+  const [settings, allCategories, pendingCount] = await Promise.all([
     getSettings(userId),
     getAllCategories(userId),
+    getPendingCount(userId),
   ]);
   const cycle = getCycleBounds(settings);
   const locale = settings.locale;
@@ -209,14 +212,16 @@ export async function ChartsView({
             signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/", label: t(locale, "appName") },
-              { href: "/inbox", label: t(locale, "inbox") },
               { href: "/settings", label: t(locale, "settings") },
             ]}
           />
           <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
             {t(locale, "appName")}
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
+            <ThemeToggle />
+          </div>
         </div>
         <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
@@ -229,12 +234,6 @@ export async function ChartsView({
           </div>
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
             <Link
-              href="/inbox"
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "inbox")}
-            </Link>
-            <Link
               href="/settings"
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
@@ -246,8 +245,9 @@ export async function ChartsView({
             >
               {"\u2190"} {t(locale, "back")}
             </Link>
-            <LogoutButton label={t(locale, "signOut")} />
+            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
             <ThemeToggle />
+            <LogoutIcon ariaLabel={t(locale, "signOut")} />
           </nav>
         </div>
       </header>
