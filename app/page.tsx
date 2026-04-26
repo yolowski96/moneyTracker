@@ -102,7 +102,7 @@ export default async function Home() {
     const amount = parseAmount(formData.get("amount"));
     const merchant = String(formData.get("merchant") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
-    if (!Number.isFinite(amount) || amount <= 0 || !merchant) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       log("action.addTransaction", 400, "invalid_input", "rejected form submission", {
         amountRaw: formData.get("amount"),
         merchantLen: merchant.length,

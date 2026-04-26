@@ -57,21 +57,6 @@ function categoryBreakdown(txns: Transaction[]) {
   return [...byCat.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-function topMerchants(txns: Transaction[], limit = 5) {
-  const byMerchant = new Map<string, { total: number; count: number }>();
-  for (const t of txns) {
-    const key = t.merchant;
-    const cur = byMerchant.get(key) ?? { total: 0, count: 0 };
-    cur.total += t.amount;
-    cur.count += 1;
-    byMerchant.set(key, cur);
-  }
-  return [...byMerchant.entries()]
-    .map(([merchant, v]) => ({ merchant, ...v }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, limit);
-}
-
 export async function ChartsView({
   userId,
   userEmail,
@@ -138,7 +123,6 @@ export async function ChartsView({
   const primaryMaxDaily = Math.max(1, ...primaryDays.map((d) => d.total));
   const primaryTotal = primary.txns.reduce((s, t) => s + t.amount, 0);
   const primaryCategories = categoryBreakdown(primary.txns);
-  const primaryMerchants = topMerchants(primary.txns, 5);
   const primaryDayCount = primaryDays.length || 1;
   const primaryAvgDay = Math.round(primaryTotal / primaryDayCount);
 
@@ -388,29 +372,6 @@ export async function ChartsView({
         )}
       </section>
 
-      {/* Top merchants */}
-      {primaryMerchants.length > 0 && (
-        <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-          <div className="mb-4 text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            {t(locale, "topMerchants")} {"\u00B7"} {primary.mode === "month" ? primary.title : t(locale, "thisCycle")}
-          </div>
-          <ul className="divide-y divide-[color:var(--border)]">
-            {primaryMerchants.map((m) => (
-              <li key={m.merchant} className="flex items-center justify-between py-2 text-sm">
-                <div className="min-w-0 flex-1 truncate pr-4">{m.merchant}</div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs tabular-nums text-[color:var(--muted)]">
-                    {m.count}x
-                  </span>
-                  <span className="w-24 text-right font-mono tabular-nums">
-                    {formatAmount(m.total, locale, userCurrency)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {/* Monthly history list */}
       <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">

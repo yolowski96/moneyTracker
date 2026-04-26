@@ -50,7 +50,6 @@ export function AddTransactionForm({ action, categories, locale, labels }: Props
         <input
           name="merchant"
           type="text"
-          required
           placeholder={labels.merchant}
           className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1 text-sm outline-none"
         />
