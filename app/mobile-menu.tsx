@@ -111,6 +111,7 @@ export function MobileMenu({
             <Link
               key={it.href}
               href={it.href}
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="flex items-center justify-between gap-3 rounded px-3 py-3 text-sm text-[color:var(--foreground)] hover:bg-[color:var(--surface)]"
             >

@@ -235,12 +235,14 @@ export async function ChartsView({
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
             <Link
               href="/settings"
+              prefetch={false}
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
               {t(locale, "settings")}
             </Link>
             <Link
               href="/"
+              prefetch={false}
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
               {"\u2190"} {t(locale, "back")}

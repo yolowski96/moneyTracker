@@ -6,11 +6,25 @@ import { getSettings, getCycleBounds, type Period } from "@/lib/cycle";
 import { getAllCategories } from "@/lib/categories";
 import { generateApiToken } from "@/lib/auth";
 import { requireUserId } from "@/lib/session";
+import { unstable_cache } from "next/cache";
 import {
   userSettingsTag,
   userTxnTag,
   userCategoriesTag,
 } from "@/lib/cache-tags";
+
+function getUserMeta(userId: string) {
+  const fn = unstable_cache(
+    (uid: string) =>
+      prisma.user.findUnique({
+        where: { id: uid },
+        select: { apiToken: true, email: true },
+      }),
+    ["user:meta:v1", userId],
+    { tags: [userSettingsTag(userId)] },
+  );
+  return fn(userId);
+}
 import { log } from "@/lib/log";
 import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
 import { currencySymbol } from "@/lib/format";
@@ -39,7 +53,7 @@ export default async function SettingsPage() {
   const [settings, categories, user, pendingCount] = await Promise.all([
     getSettings(userId),
     getAllCategories(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { apiToken: true, email: true } }),
+    getUserMeta(userId),
     getPendingCount(userId),
   ]);
   const cycle = getCycleBounds(settings);
@@ -262,12 +276,14 @@ export default async function SettingsPage() {
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
             <Link
               href="/charts"
+              prefetch={false}
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
               {t(locale, "charts")}
             </Link>
             <Link
               href="/"
+              prefetch={false}
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
               {"\u2190"} {t(locale, "back")}

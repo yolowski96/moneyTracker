@@ -10,6 +10,7 @@ export function InboxBell({
   return (
     <Link
       href="/inbox"
+      prefetch={false}
       aria-label={count > 0 ? `${ariaLabel} (${count})` : ariaLabel}
       title={ariaLabel}
       className="relative flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] text-sm text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)]"
