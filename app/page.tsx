@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { formatAmount, formatDateShort } from "@/lib/format";
+import { formatAmount, formatDateShort, parseAmount } from "@/lib/format";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
 import { getActiveCategories, getCategory } from "@/lib/categories";
 import { t, categoryLabel } from "@/lib/i18n";
@@ -99,7 +99,7 @@ export default async function Home() {
     "use server";
     const { requireUserId } = await import("@/lib/session");
     const uid = await requireUserId();
-    const amount = Number(formData.get("amount"));
+    const amount = parseAmount(formData.get("amount"));
     const merchant = String(formData.get("merchant") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
     if (!Number.isFinite(amount) || amount <= 0 || !merchant) {
@@ -163,7 +163,7 @@ export default async function Home() {
     "use server";
     const { requireUserId } = await import("@/lib/session");
     const uid = await requireUserId();
-    const amount = Number(formData.get("amount"));
+    const amount = parseAmount(formData.get("amount"));
     const note = String(formData.get("note") ?? "").trim();
     if (!Number.isFinite(amount) || amount <= 0) {
       log("action.addIncomeEvent", 400, "invalid_amount", "rejected form submission", {

@@ -85,11 +85,10 @@ export function EditForm({
             {currencySymbol}
           </span>
           <input
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
             required
             inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]{1,2})?"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full border-0 bg-transparent px-1 py-1 text-sm tabular-nums outline-none"

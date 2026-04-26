@@ -8,7 +8,7 @@ import { log } from "@/lib/log";
 import { getSettings } from "@/lib/cycle";
 import { requireUserId } from "@/lib/session";
 import { t } from "@/lib/i18n";
-import { currencySymbol } from "@/lib/format";
+import { currencySymbol, parseAmount } from "@/lib/format";
 import { ThemeToggle } from "../../theme-toggle";
 import { EditForm } from "./form";
 
@@ -44,7 +44,7 @@ export default async function EditPage({ params, searchParams }: PageProps) {
       return;
     }
 
-    const amount = Number(formData.get("amount"));
+    const amount = parseAmount(formData.get("amount"));
     const merchant = String(formData.get("merchant") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
     const note = String(formData.get("note") ?? "").trim();

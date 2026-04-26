@@ -27,7 +27,7 @@ function getUserMeta(userId: string) {
 }
 import { log } from "@/lib/log";
 import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
-import { currencySymbol } from "@/lib/format";
+import { currencySymbol, parseAmount } from "@/lib/format";
 import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
@@ -96,7 +96,7 @@ export default async function SettingsPage() {
       31,
     );
 
-    const incomeRaw = Number(formData.get("incomeAmount") ?? 0);
+    const incomeRaw = parseAmount(formData.get("incomeAmount"));
     const incomeAmount = Number.isFinite(incomeRaw) && incomeRaw > 0
       ? Math.round(incomeRaw * 100)
       : 0;

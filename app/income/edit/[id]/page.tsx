@@ -7,7 +7,7 @@ import { log } from "@/lib/log";
 import { getSettings } from "@/lib/cycle";
 import { requireUserId } from "@/lib/session";
 import { t } from "@/lib/i18n";
-import { currencySymbol } from "@/lib/format";
+import { currencySymbol, parseAmount } from "@/lib/format";
 import { ThemeToggle } from "../../../theme-toggle";
 import { IncomeEditForm } from "./form";
 
@@ -39,7 +39,7 @@ export default async function EditIncomePage({ params }: PageProps) {
       return;
     }
 
-    const amount = Number(formData.get("amount"));
+    const amount = parseAmount(formData.get("amount"));
     const note = String(formData.get("note") ?? "").trim();
     const occurredAtRaw = String(formData.get("occurredAt") ?? "").trim();
 

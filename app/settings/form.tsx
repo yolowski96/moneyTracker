@@ -178,10 +178,9 @@ export function SettingsForm({
             {currencySymbol}
           </span>
           <input
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
             inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]{1,2})?"
             value={income}
             onChange={(e) => setIncome(e.target.value)}
             placeholder="0.00"

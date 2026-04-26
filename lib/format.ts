@@ -9,6 +9,12 @@ export function bcp47(locale: Locale): string {
   return LOCALE_MAP[locale] ?? "en-IE";
 }
 
+export function parseAmount(raw: FormDataEntryValue | null | undefined): number {
+  if (raw == null) return NaN;
+  const s = String(raw).trim().replace(/\s/g, "").replace(",", ".");
+  return Number(s);
+}
+
 export function formatAmount(
   cents: number,
   locale: Locale = "en",

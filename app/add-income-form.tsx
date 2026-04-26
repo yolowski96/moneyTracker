@@ -49,12 +49,11 @@ export function AddIncomeForm({ action, currencySymbol, labels }: Props) {
         </span>
         <input
           name="amount"
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
           required
           placeholder="0.00"
           inputMode="decimal"
+          pattern="[0-9]+([.,][0-9]{1,2})?"
           className="w-24 border-0 bg-transparent px-1 py-1 text-sm tabular-nums outline-none"
           autoFocus
         />

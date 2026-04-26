@@ -38,12 +38,11 @@ export function AddTransactionForm({ action, categories, locale, labels }: Props
       <div className="flex flex-wrap items-center gap-2">
         <input
           name="amount"
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
           required
           placeholder="0.00"
           inputMode="decimal"
+          pattern="[0-9]+([.,][0-9]{1,2})?"
           className="w-24 border-0 bg-transparent px-2 py-1 text-sm tabular-nums outline-none"
           autoFocus
         />
