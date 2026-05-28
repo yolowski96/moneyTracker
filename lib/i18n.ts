@@ -70,25 +70,31 @@ const STRINGS = {
     chartsTagline: "Where the money went.",
     chartsLooking: "Looking at",
     backToCurrentCycle: "Back to current cycle",
+    allCategories: "All categories",
     dailySpend: "Daily spend",
     avg: "avg",
     perDay: "/day",
     perMonth: "/month",
+    perPeriod: "/period",
     byCategory: "By category",
     thisCycle: "this cycle",
     nothingToBreakDown: "Nothing to break down yet.",
     history: "History",
     lastNMonths: "last {n} months",
+    lastNPeriods: "last {n} periods",
     noPriorMonths: "No prior months recorded yet.",
     trend: "Trend",
     spend: "Spend",
     income: "Income",
     avgSpendPerMonth: "Avg spend / month",
     avgIncomePerMonth: "Avg income / month",
+    avgSpendPerPeriod: "Avg spend / period",
+    avgIncomePerPeriod: "Avg income / period",
     historyNote:
-      "History and trend group by calendar month regardless of your reset day.",
+      "History and trend group by your reporting period, based on your reset day.",
     noSpendingMonth: "No spending recorded this month.",
     noSpendingCycle: "No spending yet this cycle.",
+    noSpendingPeriod: "No spending recorded this period.",
 
     // Settings
     settingsTagline: "Configure your cycle, income, language and API access.",
@@ -168,6 +174,11 @@ const STRINGS = {
     // Days
     today: "Today",
     yesterday: "Yesterday",
+
+    // Pagination
+    newer: "Newer",
+    older: "Older",
+    pageOf: "Page {n} / {total}",
   },
   bg: {
     // Header / nav
@@ -222,25 +233,31 @@ const STRINGS = {
     chartsTagline: "Къде отидоха парите.",
     chartsLooking: "Преглед на",
     backToCurrentCycle: "Към текущия период",
+    allCategories: "Всички категории",
     dailySpend: "Разход на ден",
     avg: "средно",
     perDay: "/ден",
     perMonth: "/месец",
+    perPeriod: "/период",
     byCategory: "По категория",
     thisCycle: "този период",
     nothingToBreakDown: "Все още няма какво да разбиеш.",
     history: "История",
     lastNMonths: "последни {n} месеца",
+    lastNPeriods: "последни {n} периода",
     noPriorMonths: "Няма записани минали месеци.",
     trend: "Тенденция",
     spend: "Разход",
     income: "Доход",
     avgSpendPerMonth: "Среден разход / месец",
     avgIncomePerMonth: "Среден доход / месец",
+    avgSpendPerPeriod: "Среден разход / период",
+    avgIncomePerPeriod: "Среден доход / период",
     historyNote:
-      "Историята и тенденцията групират по календарен месец независимо от деня на нулиране.",
+      "Историята и тенденцията групират по твоя отчетен период, спрямо деня на нулиране.",
     noSpendingMonth: "Няма разходи този месец.",
     noSpendingCycle: "Няма разходи в този период.",
+    noSpendingPeriod: "Няма разходи в този период.",
 
     // Settings
     settingsTagline: "Настрой период, доход, език и API достъп.",
@@ -320,6 +337,11 @@ const STRINGS = {
     // Days
     today: "Днес",
     yesterday: "Вчера",
+
+    // Pagination
+    newer: "По-нови",
+    older: "По-стари",
+    pageOf: "Стр. {n} / {total}",
   },
 } as const;
 

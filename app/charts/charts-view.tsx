@@ -3,11 +3,17 @@ import type { Transaction } from "@prisma/client";
 import {
   formatAmount,
   formatDateShort,
-  formatMonthYear,
   formatMonthShort,
   formatMonthShortYear,
+  formatCycleRange,
 } from "@/lib/format";
-import { getSettings, getCycleBounds } from "@/lib/cycle";
+import {
+  getSettings,
+  getCycleBounds,
+  getRecentCycles,
+  cycleKey,
+  cycleMidpoint,
+} from "@/lib/cycle";
 import { getAllCategories } from "@/lib/categories";
 import { t, categoryLabel } from "@/lib/i18n";
 import {
@@ -23,15 +29,7 @@ import { InboxBell } from "../inbox-bell";
 import { MobileMenu } from "../mobile-menu";
 import { LogoutIcon } from "../logout-icon";
 
-const MONTHS_OF_HISTORY = 12;
-
-function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function addMonths(d: Date, n: number): Date {
-  return new Date(d.getFullYear(), d.getMonth() + n, 1);
-}
+const PERIODS_OF_HISTORY = 12;
 
 function dayBuckets(start: Date, end: Date, txns: Transaction[]) {
   const days: { date: Date; total: number }[] = [];
@@ -60,121 +58,158 @@ function categoryBreakdown(txns: Transaction[]) {
 export async function ChartsView({
   userId,
   userEmail,
-  monthAnchor,
+  periodAnchor,
+  categoryFilter,
 }: {
   userId: string;
   userEmail: string | null;
-  monthAnchor: Date | null;
+  periodAnchor: Date | null;
+  categoryFilter: string | null;
 }) {
   const [settings, allCategories, pendingCount] = await Promise.all([
     getSettings(userId),
     getAllCategories(userId),
     getPendingCount(userId),
   ]);
-  const cycle = getCycleBounds(settings);
   const locale = settings.locale;
   const userCurrency = settings.currency;
   const categoryById = new Map(allCategories.map((c) => [c.id, c]));
 
-  // Trend window: last N calendar months up to and including the current month.
+  // Trend/history window: the last N reporting periods (newest first).
   const now = new Date();
-  const trendStart = new Date(
-    now.getFullYear(),
-    now.getMonth() - (MONTHS_OF_HISTORY - 1),
-    1,
-  );
+  const cycles = getRecentCycles(settings, PERIODS_OF_HISTORY, now);
+  const cycle = cycles[0]; // current, in-flight cycle
+  const windowStart = cycles[cycles.length - 1].start;
 
-  // Month-detail window (only when monthAnchor is provided).
-  const monthStart = monthAnchor;
-  const monthEnd = monthAnchor ? addMonths(monthAnchor, 1) : null;
+  // Period-detail window (only when drilling into a specific past cycle).
+  const anchorCycle = periodAnchor ? getCycleBounds(settings, periodAnchor) : null;
 
-  const [cycleTx, historyTx, historyIncome, monthTx] = await Promise.all([
-    // Cycle view: skip this query when we're in month-detail mode.
-    monthStart
+  const [cycleTx, historyTx, historyIncome, periodTx] = await Promise.all([
+    // Current-cycle view: skip this query when we're in period-detail mode.
+    anchorCycle
       ? Promise.resolve([] as Transaction[])
       : getCycleTransactions(userId, cycle.start.toISOString(), cycle.end.toISOString()),
-    getTransactionsSince(userId, trendStart.toISOString()),
-    getIncomeEventsSince(userId, trendStart.toISOString()),
-    monthStart && monthEnd
-      ? getMonthTransactions(userId, monthStart.toISOString(), monthEnd.toISOString())
+    getTransactionsSince(userId, windowStart.toISOString()),
+    getIncomeEventsSince(userId, windowStart.toISOString()),
+    anchorCycle
+      ? getMonthTransactions(userId, anchorCycle.start.toISOString(), anchorCycle.end.toISOString())
       : Promise.resolve([] as Transaction[]),
   ]);
 
-  // ── Current-cycle / month-detail primary view ─────────────────────────
-  const primary = monthStart
+  // ── Current-cycle / period-detail primary view ────────────────────────
+  const primary = anchorCycle
     ? {
-        mode: "month" as const,
-        anchor: monthStart,
-        start: monthStart,
-        end: monthEnd!,
-        txns: monthTx,
-        title: formatMonthYear(monthStart, locale),
+        mode: "period" as const,
+        start: anchorCycle.start,
+        end: anchorCycle.end,
+        txns: periodTx,
+        title: formatCycleRange(anchorCycle.start, anchorCycle.end, locale),
       }
     : {
         mode: "cycle" as const,
-        anchor: cycle.start,
         start: cycle.start,
         end: cycle.end,
         txns: cycleTx,
         title: cycle.label,
       };
 
-  const primaryDays = dayBuckets(primary.start, primary.end, primary.txns);
+  // Optional category filter — turns the primary view into a single-category
+  // preview. Falls back to the unfiltered view if the id isn't a known category.
+  const filterCat = categoryFilter ? categoryById.get(categoryFilter) ?? null : null;
+  const viewTxns = filterCat
+    ? primary.txns.filter((tx) => tx.category === filterCat.id)
+    : primary.txns;
+  // Path that preserves the current period, used to build category links.
+  const basePath = anchorCycle ? `/charts/${cycleKey(anchorCycle.start)}` : "/charts";
+
+  const primaryDays = dayBuckets(primary.start, primary.end, viewTxns);
   const primaryMaxDaily = Math.max(1, ...primaryDays.map((d) => d.total));
-  const primaryTotal = primary.txns.reduce((s, t) => s + t.amount, 0);
+  const primaryTotal = viewTxns.reduce((s, t) => s + t.amount, 0);
   const primaryCategories = categoryBreakdown(primary.txns);
   const primaryDayCount = primaryDays.length || 1;
   const primaryAvgDay = Math.round(primaryTotal / primaryDayCount);
 
-  // ── Monthly trend: spend vs income for last N months ──────────────────
-  type MonthKey = string;
-  const months: { key: MonthKey; label: string; date: Date }[] = [];
-  for (let i = MONTHS_OF_HISTORY - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({
-      key: monthKey(d),
-      label: formatMonthShort(d, locale),
-      date: d,
-    });
+  // ── Per-period trend: spend vs income for the last N reporting periods ──
+  // Map a date to the key of the cycle that contains it (cycles are contiguous).
+  function keyForDate(date: Date): string | null {
+    for (const c of cycles) {
+      if (date >= c.start && date < c.end) return cycleKey(c.start);
+    }
+    return null;
   }
-  const monthSpend = new Map<MonthKey, number>(months.map((m) => [m.key, 0]));
-  const monthTxnCount = new Map<MonthKey, number>(months.map((m) => [m.key, 0]));
-  const monthExtra = new Map<MonthKey, number>(months.map((m) => [m.key, 0]));
-  for (const t of historyTx) {
-    const k = monthKey(t.occurredAt);
-    if (monthSpend.has(k)) {
-      monthSpend.set(k, (monthSpend.get(k) ?? 0) + t.amount);
-      monthTxnCount.set(k, (monthTxnCount.get(k) ?? 0) + 1);
+
+  const periodSpend = new Map<string, number>(cycles.map((c) => [cycleKey(c.start), 0]));
+  const periodCount = new Map<string, number>(cycles.map((c) => [cycleKey(c.start), 0]));
+  const periodExtra = new Map<string, number>(cycles.map((c) => [cycleKey(c.start), 0]));
+  for (const tx of historyTx) {
+    const k = keyForDate(tx.occurredAt);
+    if (k !== null) {
+      periodSpend.set(k, (periodSpend.get(k) ?? 0) + tx.amount);
+      periodCount.set(k, (periodCount.get(k) ?? 0) + 1);
     }
   }
   for (const e of historyIncome) {
-    const k = monthKey(e.occurredAt);
-    if (monthExtra.has(k)) monthExtra.set(k, (monthExtra.get(k) ?? 0) + e.amount);
+    const k = keyForDate(e.occurredAt);
+    if (k !== null) periodExtra.set(k, (periodExtra.get(k) ?? 0) + e.amount);
   }
-  const monthRows = months.map((m) => ({
-    ...m,
-    spend: monthSpend.get(m.key) ?? 0,
-    income: settings.incomeAmount + (monthExtra.get(m.key) ?? 0),
-    count: monthTxnCount.get(m.key) ?? 0,
-  }));
-  const maxMonth = Math.max(
-    1,
-    ...monthRows.map((m) => Math.max(m.spend, m.income)),
-  );
-  const currentMonthKey = monthKey(now);
-  const selectedKey = monthAnchor ? monthKey(monthAnchor) : null;
 
-  // Previous months, newest first, excluding the current month (still in-flight).
-  const historyRows = [...monthRows].reverse().filter((m) => m.key !== currentMonthKey);
+  // Newest first.
+  const periodRows = cycles.map((c) => {
+    const key = cycleKey(c.start);
+    return {
+      key,
+      start: c.start,
+      end: c.end,
+      spend: periodSpend.get(key) ?? 0,
+      income: settings.incomeAmount + (periodExtra.get(key) ?? 0),
+      count: periodCount.get(key) ?? 0,
+    };
+  });
+  const maxPeriod = Math.max(
+    1,
+    ...periodRows.map((m) => Math.max(m.spend, m.income)),
+  );
+  const currentKey = cycleKey(cycle.start);
+  const selectedKey = anchorCycle ? cycleKey(anchorCycle.start) : null;
+
+  // A period counts as "having data" if it has any transactions or any extra
+  // income recorded. Base income (settings.incomeAmount) alone does NOT count —
+  // it's a recurring projection, so periods the user never tracked would
+  // otherwise render phantom income bars.
+  const hasActivity = (m: (typeof periodRows)[number]) =>
+    m.spend > 0 || m.count > 0 || m.income > settings.incomeAmount;
+
+  // History list: completed periods only (exclude the in-flight current one),
+  // and only periods we actually have data for, so empty periods don't dilute.
+  const historyRows = periodRows.filter(
+    (m) => m.key !== currentKey && hasActivity(m),
+  );
   const avgPastSpend = historyRows.length
     ? Math.round(
         historyRows.reduce((s, m) => s + m.spend, 0) / historyRows.length,
       )
     : 0;
 
-  const prevMonth = monthAnchor ? addMonths(monthAnchor, -1) : null;
-  const nextMonth = monthAnchor ? addMonths(monthAnchor, 1) : null;
-  const nextDisabled = nextMonth && nextMonth > now;
+  // Trend chart bars run oldest → newest, left → right. Show only periods with
+  // real activity (plus the current one), so empty periods don't render phantom
+  // income bars for months the user wasn't tracking anything.
+  const trendRows = [...periodRows]
+    .reverse()
+    .filter((m) => m.key === currentKey || hasActivity(m));
+  const avgPeriodIncome = historyRows.length
+    ? Math.round(
+        historyRows.reduce((s, m) => s + m.income, 0) / historyRows.length,
+      )
+    : settings.incomeAmount;
+
+  // Adjacent-cycle navigation for period-detail mode.
+  const prevCycle = anchorCycle
+    ? getCycleBounds(settings, new Date(anchorCycle.start.getTime() - 1))
+    : null;
+  const nextCycle = anchorCycle
+    ? getCycleBounds(settings, anchorCycle.end)
+    : null;
+  const nextDisabled = !nextCycle || nextCycle.start >= cycle.start;
 
   log("page.charts", 200, "rendered", `mode=${primary.mode}`, {
     mode: primary.mode,
@@ -182,7 +217,7 @@ export async function ChartsView({
     cycleTxns: cycleTx.length,
     historyTxns: historyTx.length,
     historyIncome: historyIncome.length,
-    monthTxns: monthTx.length,
+    periodTxns: periodTx.length,
   });
 
   return (
@@ -211,9 +246,11 @@ export async function ChartsView({
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "charts")}</h1>
             <p className="mt-1 text-sm text-[color:var(--muted)]">
-              {primary.mode === "month"
-                ? `${t(locale, "chartsLooking")} ${primary.title}.`
-                : t(locale, "chartsTagline")}
+              {filterCat
+                ? `${t(locale, "chartsLooking")} ${filterCat.emoji} ${categoryLabel(filterCat.label, locale)} · ${primary.title}.`
+                : primary.mode === "period"
+                  ? `${t(locale, "chartsLooking")} ${primary.title}.`
+                  : t(locale, "chartsTagline")}
             </p>
           </div>
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
@@ -229,7 +266,7 @@ export async function ChartsView({
               prefetch={false}
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
-              {"\u2190"} {t(locale, "back")}
+              {"←"} {t(locale, "back")}
             </Link>
             <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
             <ThemeToggle />
@@ -238,14 +275,14 @@ export async function ChartsView({
         </div>
       </header>
 
-      {/* Month-detail navigation */}
-      {primary.mode === "month" && (
+      {/* Period-detail navigation */}
+      {primary.mode === "period" && prevCycle && nextCycle && !filterCat && (
         <nav className="mb-6 flex items-center justify-between rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm">
           <Link
-            href={`/charts/${monthKey(prevMonth!)}`}
+            href={`/charts/${cycleKey(prevCycle.start)}`}
             className="text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
           >
-            {"\u2190"} {formatMonthShortYear(prevMonth!, locale)}
+            {"←"} {formatMonthShortYear(cycleMidpoint(prevCycle.start, prevCycle.end), locale)}
           </Link>
           <Link
             href="/charts"
@@ -255,16 +292,34 @@ export async function ChartsView({
           </Link>
           {nextDisabled ? (
             <span className="text-[color:var(--muted)] opacity-40">
-              {formatMonthShortYear(nextMonth!, locale)} {"\u2192"}
+              {formatMonthShortYear(cycleMidpoint(nextCycle.start, nextCycle.end), locale)} {"→"}
             </span>
           ) : (
             <Link
-              href={`/charts/${monthKey(nextMonth!)}`}
+              href={`/charts/${cycleKey(nextCycle.start)}`}
               className="text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
-              {formatMonthShortYear(nextMonth!, locale)} {"\u2192"}
+              {formatMonthShortYear(cycleMidpoint(nextCycle.start, nextCycle.end), locale)} {"→"}
             </Link>
           )}
+        </nav>
+      )}
+
+      {/* Category-filter banner */}
+      {filterCat && (
+        <nav className="mb-6 flex items-center justify-between rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm">
+          <span className="min-w-0 truncate font-medium">
+            {filterCat.emoji} {categoryLabel(filterCat.label, locale)}
+            {primary.mode === "period" && (
+              <span className="text-[color:var(--muted)]"> {"·"} {primary.title}</span>
+            )}
+          </span>
+          <Link
+            href={basePath}
+            className="shrink-0 text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+          >
+            {"←"} {t(locale, "allCategories")}
+          </Link>
         </nav>
       )}
 
@@ -282,15 +337,15 @@ export async function ChartsView({
               {formatAmount(primaryTotal, locale, userCurrency)}
             </div>
             <div className="text-xs text-[color:var(--muted)]">
-              {t(locale, "avg")} {formatAmount(primaryAvgDay, locale, userCurrency)}{t(locale, "perDay")} {"\u00B7"} {primary.txns.length} {t(locale, "txns")}
+              {t(locale, "avg")} {formatAmount(primaryAvgDay, locale, userCurrency)}{t(locale, "perDay")} {"·"} {viewTxns.length} {t(locale, "txns")}
             </div>
           </div>
         </div>
 
         {primaryTotal === 0 ? (
           <div className="py-8 text-center text-sm text-[color:var(--muted)]">
-            {primary.mode === "month"
-              ? t(locale, "noSpendingMonth")
+            {primary.mode === "period"
+              ? t(locale, "noSpendingPeriod")
               : t(locale, "noSpendingCycle")}
           </div>
         ) : (
@@ -303,7 +358,7 @@ export async function ChartsView({
                   key={i}
                   className="group relative flex-1"
                   style={{ height: "100%" }}
-                  title={`${formatDateShort(d.date, locale)} \u2014 ${formatAmount(d.total, locale, userCurrency)}`}
+                  title={`${formatDateShort(d.date, locale)} — ${formatAmount(d.total, locale, userCurrency)}`}
                 >
                   <div
                     className={
@@ -332,59 +387,113 @@ export async function ChartsView({
         </div>
       </section>
 
-      {/* Category breakdown */}
-      <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-        <div className="mb-4 text-xs uppercase tracking-widest text-[color:var(--muted)]">
-          {t(locale, "byCategory")} {"\u00B7"} {primary.mode === "month" ? primary.title : t(locale, "thisCycle")}
-        </div>
-        {primaryCategories.length === 0 ? (
-          <div className="py-4 text-sm text-[color:var(--muted)]">
-            {t(locale, "nothingToBreakDown")}
+      {filterCat ? (
+        /* Single-category transaction list */
+        <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
+          <div className="mb-4 flex items-baseline justify-between">
+            <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+              {filterCat.emoji} {categoryLabel(filterCat.label, locale)}
+            </div>
+            <div className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
+              {formatAmount(primaryTotal, locale, userCurrency)}
+            </div>
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {primaryCategories.map(([catId, total]) => {
-              const cat = catId ? categoryById.get(catId) ?? null : null;
-              const pct = primaryTotal
-                ? Math.round((total / primaryTotal) * 100)
-                : 0;
-              return (
-                <li key={catId ?? "uncat"} className="flex items-center gap-3 text-sm">
-                  <span className="w-32 shrink-0 truncate">
-                    {cat ? `${cat.emoji} ${categoryLabel(cat.label, locale)}` : "\u2014"}
-                  </span>
-                  <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
-                    <div
-                      className="h-full bg-[color:var(--foreground)]/70"
-                      style={{ width: `${pct}%` }}
-                    />
+          {viewTxns.length === 0 ? (
+            <div className="py-4 text-sm text-[color:var(--muted)]">
+              {primary.mode === "period"
+                ? t(locale, "noSpendingPeriod")
+                : t(locale, "noSpendingCycle")}
+            </div>
+          ) : (
+            <ul className="divide-y divide-[color:var(--border)]">
+              {viewTxns.map((tx) => (
+                <li key={tx.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{tx.merchant}</div>
+                    <div className="mt-0.5 text-xs text-[color:var(--muted)]">
+                      {formatDateShort(tx.occurredAt, locale)}
+                      {tx.note ? ` · ${tx.note}` : ""}
+                    </div>
                   </div>
-                  <span className="w-12 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
-                    {pct}%
-                  </span>
-                  <span className="w-24 text-right font-mono text-xs tabular-nums">
-                    {formatAmount(total, locale, userCurrency)}
+                  <span className="shrink-0 font-mono tabular-nums">
+                    {formatAmount(tx.amount, locale, tx.currency)}
                   </span>
                 </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        /* Category breakdown */
+        <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
+          <div className="mb-4 text-xs uppercase tracking-widest text-[color:var(--muted)]">
+            {t(locale, "byCategory")} {"·"} {primary.mode === "period" ? primary.title : t(locale, "thisCycle")}
+          </div>
+          {primaryCategories.length === 0 ? (
+            <div className="py-4 text-sm text-[color:var(--muted)]">
+              {t(locale, "nothingToBreakDown")}
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {primaryCategories.map(([catId, total]) => {
+                const cat = catId ? categoryById.get(catId) ?? null : null;
+                const pct = primaryTotal
+                  ? Math.round((total / primaryTotal) * 100)
+                  : 0;
+                const row = (
+                  <>
+                    <span className="w-32 shrink-0 truncate">
+                      {cat ? `${cat.emoji} ${categoryLabel(cat.label, locale)}` : "—"}
+                    </span>
+                    <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
+                      <div
+                        className="h-full bg-[color:var(--foreground)]/70"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="w-12 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
+                      {pct}%
+                    </span>
+                    <span className="w-24 text-right font-mono text-xs tabular-nums">
+                      {formatAmount(total, locale, userCurrency)}
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={catId ?? "uncat"}>
+                    {catId ? (
+                      <Link
+                        href={`${basePath}?cat=${catId}`}
+                        className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-sm transition hover:bg-[color:var(--border)]/30"
+                      >
+                        {row}
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-3 px-2 py-1 text-sm">{row}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
 
 
-      {/* Monthly history list */}
+      {!filterCat && (
+        <>
+      {/* Per-period history list */}
       <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
         <div className="mb-4 flex items-baseline justify-between">
           <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            {t(locale, "history")} {"\u00B7"} {t(locale, "lastNMonths", { n: MONTHS_OF_HISTORY })}
+            {t(locale, "history")} {"·"} {t(locale, "lastNPeriods", { n: PERIODS_OF_HISTORY })}
           </div>
           <div className="text-xs text-[color:var(--muted)]">
-            {t(locale, "avg")} {formatAmount(avgPastSpend, locale, userCurrency)}{t(locale, "perMonth")}
+            {t(locale, "avg")} {formatAmount(avgPastSpend, locale, userCurrency)}{t(locale, "perPeriod")}
           </div>
         </div>
 
-        {historyRows.every((m) => m.spend === 0 && m.count === 0) ? (
+        {historyRows.length === 0 ? (
           <div className="py-4 text-sm text-[color:var(--muted)]">
             {t(locale, "noPriorMonths")}
           </div>
@@ -400,6 +509,7 @@ export async function ChartsView({
                 <li key={m.key}>
                   <Link
                     href={`/charts/${m.key}`}
+                    title={formatCycleRange(m.start, m.end, locale)}
                     className={
                       "flex items-center justify-between gap-4 py-3 text-sm transition " +
                       (isSelected
@@ -409,13 +519,13 @@ export async function ChartsView({
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <span className="w-24 shrink-0">
-                        {formatMonthShortYear(m.date, locale)}
+                        {formatMonthShortYear(cycleMidpoint(m.start, m.end), locale)}
                       </span>
                       <div className="relative hidden h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)] sm:block">
                         <div
                           className="h-full bg-[color:var(--foreground)]/60"
                           style={{
-                            width: `${Math.min(100, (m.spend / Math.max(1, maxMonth)) * 100)}%`,
+                            width: `${Math.min(100, (m.spend / Math.max(1, maxPeriod)) * 100)}%`,
                           }}
                         />
                       </div>
@@ -424,7 +534,7 @@ export async function ChartsView({
                       <span className="hidden text-xs text-[color:var(--muted)] sm:inline">
                         {m.count} {t(locale, "txns")}
                       </span>
-                      {avgPastSpend > 0 && m.spend > 0 && (
+                      {historyRows.length > 1 && avgPastSpend > 0 && m.spend > 0 && vsAvg !== 0 && (
                         <span
                           className={
                             "w-12 text-right font-mono text-xs tabular-nums " +
@@ -456,11 +566,11 @@ export async function ChartsView({
         )}
       </section>
 
-      {/* Monthly trend chart */}
+      {/* Per-period trend chart */}
       <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            {t(locale, "trend")} {"\u00B7"} {t(locale, "lastNMonths", { n: MONTHS_OF_HISTORY })}
+            {t(locale, "trend")} {"·"} {t(locale, "lastNPeriods", { n: PERIODS_OF_HISTORY })}
           </div>
           <div className="flex items-center gap-3 text-xs text-[color:var(--muted)]">
             <span className="flex items-center gap-1.5">
@@ -474,33 +584,35 @@ export async function ChartsView({
           </div>
         </div>
 
-        <div className="flex h-48 items-end gap-0.5 sm:gap-2">
-          {monthRows.map((m) => {
-            const spendH = (m.spend / maxMonth) * 100;
-            const incomeH = (m.income / maxMonth) * 100;
+        <div className="flex h-48 items-stretch gap-0.5 sm:gap-2">
+          {trendRows.map((m) => {
+            const spendH = (m.spend / maxPeriod) * 100;
+            const incomeH = (m.income / maxPeriod) * 100;
             const isSelected = m.key === selectedKey;
-            const isCurrent = m.key === currentMonthKey;
+            const isCurrent = m.key === currentKey;
             return (
               <Link
                 key={m.key}
-                href={m.key === currentMonthKey ? "/charts" : `/charts/${m.key}`}
+                href={isCurrent ? "/charts" : `/charts/${m.key}`}
                 className={
                   "group flex min-w-0 flex-1 flex-col items-center rounded-md px-0 py-1 transition sm:px-1 " +
                   (isSelected
                     ? "bg-[color:var(--border)]/50"
                     : "hover:bg-[color:var(--border)]/30")
                 }
-                title={`${m.label} \u2014 ${formatAmount(m.spend, locale, userCurrency)} ${t(locale, "spend")} / ${formatAmount(m.income, locale, userCurrency)} ${t(locale, "income")}`}
+                title={`${formatCycleRange(m.start, m.end, locale)} — ${formatAmount(m.spend, locale, userCurrency)} ${t(locale, "spend")} / ${formatAmount(m.income, locale, userCurrency)} ${t(locale, "income")}`}
               >
-                <div className="relative flex h-full w-full items-end justify-center gap-0.5 sm:gap-1">
-                  <div
-                    className="w-1/3 rounded-sm bg-[color:var(--foreground)]/70 transition group-hover:bg-[color:var(--foreground)]"
-                    style={{ height: `${Math.max(spendH, 1)}%` }}
-                  />
-                  <div
-                    className="w-1/3 rounded-sm bg-emerald-500/70 transition group-hover:bg-emerald-500"
-                    style={{ height: `${Math.max(incomeH, 1)}%` }}
-                  />
+                <div className="relative w-full flex-1">
+                  <div className="absolute inset-0 flex items-end justify-center gap-0.5 sm:gap-1">
+                    <div
+                      className="w-1/3 rounded-sm bg-[color:var(--foreground)]/70 transition group-hover:bg-[color:var(--foreground)]"
+                      style={{ height: `${Math.max(spendH, 1)}%` }}
+                    />
+                    <div
+                      className="w-1/3 rounded-sm bg-emerald-500/70 transition group-hover:bg-emerald-500"
+                      style={{ height: `${Math.max(incomeH, 1)}%` }}
+                    />
+                  </div>
                 </div>
                 <div
                   className={
@@ -508,7 +620,7 @@ export async function ChartsView({
                     (isCurrent ? "font-medium" : "text-[color:var(--muted)]")
                   }
                 >
-                  {m.label}
+                  {formatMonthShort(cycleMidpoint(m.start, m.end), locale)}
                 </div>
               </Link>
             );
@@ -517,27 +629,15 @@ export async function ChartsView({
 
         <div className="mt-4 grid grid-cols-2 gap-4 border-t border-[color:var(--border)] pt-4 text-xs">
           <div>
-            <div className="text-[color:var(--muted)]">{t(locale, "avgSpendPerMonth")}</div>
+            <div className="text-[color:var(--muted)]">{t(locale, "avgSpendPerPeriod")}</div>
             <div className="mt-0.5 font-mono tabular-nums">
-              {formatAmount(
-                Math.round(
-                  monthRows.reduce((s, m) => s + m.spend, 0) / monthRows.length,
-                ),
-                locale,
-                userCurrency,
-              )}
+              {formatAmount(avgPastSpend, locale, userCurrency)}
             </div>
           </div>
           <div>
-            <div className="text-[color:var(--muted)]">{t(locale, "avgIncomePerMonth")}</div>
+            <div className="text-[color:var(--muted)]">{t(locale, "avgIncomePerPeriod")}</div>
             <div className="mt-0.5 font-mono tabular-nums">
-              {formatAmount(
-                Math.round(
-                  monthRows.reduce((s, m) => s + m.income, 0) / monthRows.length,
-                ),
-                locale,
-                userCurrency,
-              )}
+              {formatAmount(avgPeriodIncome, locale, userCurrency)}
             </div>
           </div>
         </div>
@@ -546,6 +646,8 @@ export async function ChartsView({
       <p className="mt-6 text-center text-xs text-[color:var(--muted)]">
         {t(locale, "historyNote")}
       </p>
+        </>
+      )}
     </main>
   );
 }

@@ -48,7 +48,13 @@ function formatDayLabel(iso: string, locale: "en" | "bg") {
   });
 }
 
-export default async function Home() {
+const DAYS_PER_PAGE = 5;
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string }>;
+}) {
   const { id: userId, email: userEmail } = await requireUser();
 
   const settingsPromise = getSettings(userId);
@@ -94,6 +100,16 @@ export default async function Home() {
     .slice(0, 6);
 
   const grouped = groupByDay(recentTransactions);
+  const totalPages = Math.max(1, Math.ceil(grouped.length / DAYS_PER_PAGE));
+  const sp = await searchParams;
+  const rawPage = Number.parseInt(String(sp?.p ?? "1"), 10);
+  const page = Number.isFinite(rawPage)
+    ? Math.min(Math.max(rawPage, 1), totalPages)
+    : 1;
+  const pageDays = grouped.slice(
+    (page - 1) * DAYS_PER_PAGE,
+    page * DAYS_PER_PAGE,
+  );
 
   async function addTransaction(formData: FormData) {
     "use server";
@@ -477,7 +493,7 @@ export default async function Home() {
             <code className="font-mono text-xs">/api/transactions</code>.
           </div>
         )}
-        {grouped.map(([day, items]) => {
+        {pageDays.map(([day, items]) => {
           const dayTotal = items.reduce((sum, t) => sum + t.amount, 0);
           return (
             <div key={day}>
@@ -542,6 +558,36 @@ export default async function Home() {
             </div>
           );
         })}
+
+        {totalPages > 1 && (
+          <nav className="flex items-center justify-between border-t border-[color:var(--border)] pt-4">
+            {page > 1 ? (
+              <Link
+                href={`/?p=${page - 1}`}
+                prefetch={false}
+                className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              >
+                {"←"} {t(locale, "newer")}
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span className="text-xs tabular-nums text-[color:var(--muted)]">
+              {t(locale, "pageOf", { n: page, total: totalPages })}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={`/?p=${page + 1}`}
+                prefetch={false}
+                className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              >
+                {t(locale, "older")} {"→"}
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        )}
       </section>
     </main>
   );

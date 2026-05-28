@@ -5,7 +5,19 @@ import { requireUser } from "@/lib/session";
 // build time. Tag-based cache invalidation keeps cost low at runtime.
 export const dynamic = "force-dynamic";
 
-export default async function ChartsPage() {
+export default async function ChartsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cat?: string }>;
+}) {
   const { id, email } = await requireUser();
-  return <ChartsView userId={id} userEmail={email} monthAnchor={null} />;
+  const { cat } = await searchParams;
+  return (
+    <ChartsView
+      userId={id}
+      userEmail={email}
+      periodAnchor={null}
+      categoryFilter={cat ?? null}
+    />
+  );
 }

@@ -203,6 +203,41 @@ export function getCycleBounds(settings: Settings, now = new Date()): CycleBound
   return { start, end, label, daysUntilReset };
 }
 
+// Stable key for a cycle, derived from its local start date (YYYY-MM-DD).
+// Used as the URL segment for cycle drill-down and as a bucketing key.
+export function cycleKey(start: Date): string {
+  const y = start.getFullYear();
+  const m = String(start.getMonth() + 1).padStart(2, "0");
+  const d = String(start.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Midpoint of a cycle — used to pick a representative month label. For a cycle
+// that runs reset-day → reset-day this lands in the month the period mostly
+// covers, and collapses to the calendar month itself when the reset day is 1.
+export function cycleMidpoint(start: Date, end: Date): Date {
+  return new Date((start.getTime() + end.getTime()) / 2);
+}
+
+// Enumerate the most recent `count` reporting periods, newest first.
+// Index 0 is the current (in-flight) cycle. Walks backwards by re-deriving the
+// cycle for the instant just before each start, so week/month/year reset rules
+// and day clamping are handled by getCycleBounds itself.
+export function getRecentCycles(
+  settings: Settings,
+  count: number,
+  now = new Date(),
+): CycleBounds[] {
+  const cycles: CycleBounds[] = [];
+  let ref = now;
+  for (let i = 0; i < count; i++) {
+    const c = getCycleBounds(settings, ref);
+    cycles.push(c);
+    ref = new Date(c.start.getTime() - 1);
+  }
+  return cycles;
+}
+
 export function periodAdjective(period: Period): string {
   switch (period) {
     case "week":

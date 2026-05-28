@@ -59,6 +59,13 @@ export function formatMonthShort(d: Date, locale: Locale): string {
   return d.toLocaleDateString(bcp47(locale), { month: "short" });
 }
 
+// Reporting-period range, e.g. "26 Apr – 25 May". `end` is exclusive (the next
+// cycle's start), so the last included day is end − 1.
+export function formatCycleRange(start: Date, end: Date, locale: Locale): string {
+  const lastDay = new Date(end.getTime() - 86_400_000);
+  return `${formatDateShort(start, locale)} – ${formatDateShort(lastDay, locale)}`;
+}
+
 export function currencySymbol(
   locale: Locale,
   currency: Currency | string,
