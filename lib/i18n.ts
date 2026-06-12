@@ -184,6 +184,7 @@ const STRINGS = {
     noGoalHint:
       "Set a target and the app tracks income minus spending toward it automatically, cycle by cycle.",
     savedLabel: "Saved",
+    thisCycleSoFar: "This cycle so far: {amount} (counts when the cycle ends)",
     sinceStart: "since {date}",
     etaAtPace: "At this pace: ~{when}",
     etaUnknown: "Not enough history for a projection yet.",
@@ -383,6 +384,7 @@ const STRINGS = {
     noGoalHint:
       "Задай сума — приложението автоматично брои доход минус разходи към нея, период след период.",
     savedLabel: "Спестено",
+    thisCycleSoFar: "Този период досега: {amount} (брои се в края на периода)",
     sinceStart: "от {date}",
     etaAtPace: "При това темпо: ~{when}",
     etaUnknown: "Още няма достатъчно история за прогноза.",

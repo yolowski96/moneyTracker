@@ -147,6 +147,50 @@ export default async function GoalsPage() {
     updateTag(userGoalsTag(uid));
   }
 
+  async function renameGoal(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const id = String(formData.get("id") ?? "");
+    const name = String(formData.get("name") ?? "").trim();
+    if (!id || !name) {
+      log("action.goals.rename", 400, "invalid_input", "id or name missing", {
+        id,
+        userId: uid,
+      });
+      return;
+    }
+    // Scoped to archived goals — the active goal has its own edit form.
+    const result = await prisma.goal.updateMany({
+      where: { id, userId: uid, archived: true },
+      data: { name },
+    });
+    log("action.goals.rename", result.count ? 200 : 404, result.count ? "renamed" : "not_owned", `goal ${id}`, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userGoalsTag(uid));
+  }
+
+  async function deleteGoal(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    // Only archived goals can be deleted; the active one must be archived first.
+    const result = await prisma.goal.deleteMany({
+      where: { id, userId: uid, archived: true },
+    });
+    log("action.goals.delete", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `goal ${id}`, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userGoalsTag(uid));
+  }
+
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
       <header className="mb-10">
@@ -266,6 +310,13 @@ export default async function GoalsPage() {
                       })
                     : t(locale, "etaUnknown")}
               </span>
+            </div>
+            <div className="mt-1 text-xs text-[color:var(--muted)]">
+              {t(locale, "thisCycleSoFar", {
+                amount:
+                  (progress.currentCycleDelta >= 0 ? "+" : "") +
+                  formatAmount(progress.currentCycleDelta, locale, userCurrency),
+              })}
             </div>
           </div>
 
@@ -405,26 +456,59 @@ export default async function GoalsPage() {
         ) : (
           <ul className="divide-y divide-[color:var(--border)]">
             {archivedGoals.map((g) => (
-              <li key={g.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <span aria-hidden className="text-base">{g.emoji}</span>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm">{g.name}</div>
-                    <div className="mt-0.5 text-xs text-[color:var(--muted)]">
-                      {g.achievedAt
-                        ? `${t(locale, "achievedBadge")} · ${formatDateShort(g.achievedAt, locale)}`
-                        : t(locale, "abandonedBadge")}
+              <li key={g.id} className="group py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span aria-hidden className="text-base">{g.emoji}</span>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm">{g.name}</div>
+                      <div className="mt-0.5 text-xs text-[color:var(--muted)]">
+                        {g.achievedAt
+                          ? `${t(locale, "achievedBadge")} · ${formatDateShort(g.achievedAt, locale)}`
+                          : t(locale, "abandonedBadge")}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="font-mono text-sm tabular-nums text-[color:var(--muted)]">
+                      {formatAmount(g.targetAmount, locale, userCurrency)}
+                    </span>
+                    {g.achievedAt ? (
+                      <span aria-hidden className="text-emerald-500">{"✓"}</span>
+                    ) : null}
+                    <form action={deleteGoal}>
+                      <input type="hidden" name="id" value={g.id} />
+                      <button
+                        type="submit"
+                        aria-label={t(locale, "delete")}
+                        className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
+                      >
+                        &times;
+                      </button>
+                    </form>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="font-mono text-sm tabular-nums text-[color:var(--muted)]">
-                    {formatAmount(g.targetAmount, locale, userCurrency)}
-                  </span>
-                  {g.achievedAt ? (
-                    <span aria-hidden className="text-emerald-500">{"✓"}</span>
-                  ) : null}
-                </div>
+                <details>
+                  <summary className="mt-1 w-fit cursor-pointer list-none text-xs text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100">
+                    {t(locale, "rename")}
+                  </summary>
+                  <form action={renameGoal} className="mt-2 flex items-center gap-2">
+                    <input type="hidden" name="id" value={g.id} />
+                    <input
+                      type="text"
+                      name="name"
+                      required
+                      defaultValue={g.name}
+                      className={INPUT_CLS + " max-w-xs"}
+                    />
+                    <button
+                      type="submit"
+                      className="shrink-0 rounded-md bg-[color:var(--foreground)] px-3 py-1.5 text-xs font-medium text-[color:var(--background)]"
+                    >
+                      {t(locale, "save")}
+                    </button>
+                  </form>
+                </details>
               </li>
             ))}
           </ul>

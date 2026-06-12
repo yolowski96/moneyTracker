@@ -67,10 +67,11 @@ export async function getArchivedGoals(userId: string): Promise<Goal[]> {
 }
 
 export type GoalProgress = {
-  saved: number; // cents; honest value, can be negative
+  saved: number; // cents from completed cycles; can be negative
   pct: number; // 0–100, clamped for the bar
   remaining: number; // cents, never negative
   achieved: boolean;
+  currentCycleDelta: number; // in-flight cycle surplus so far; NOT in `saved`
   etaCycles: number | null;
   etaDate: Date | null;
 };
@@ -91,9 +92,12 @@ function cyclesSince(settings: Settings, since: Date, now: Date): CycleBounds[] 
   return cycles;
 }
 
-// Saved = base income for every cycle the goal has seen (including the
-// in-flight one) + extra income − spending since the goal's start cycle.
-// The same per-cycle income formula the charts use.
+// Saved = base income + extra income − spending, summed over COMPLETED
+// cycles only (same per-cycle income formula the charts use). Money isn't
+// saved until the cycle it belongs to is over — otherwise a fresh goal is
+// instantly "achieved" by the current month's untouched income. The
+// in-flight cycle's running surplus is reported separately and rolls into
+// `saved` when the cycle ends.
 export async function computeGoalProgress(
   goal: Goal,
   settings: Settings,
@@ -105,10 +109,27 @@ export async function computeGoalProgress(
     getIncomeEventsSince(goal.userId, sinceIso),
   ]);
   const cycles = cyclesSince(settings, goal.startCycle, now);
+  const current = cycles[0];
 
-  const spent = txns.reduce((sum, t) => sum + t.amount, 0);
-  const bonus = income.reduce((sum, e) => sum + e.amount, 0);
-  const saved = settings.incomeAmount * cycles.length + bonus - spent;
+  let completedSpent = 0;
+  let currentSpent = 0;
+  for (const tx of txns) {
+    if (current && tx.occurredAt >= current.start) currentSpent += tx.amount;
+    else completedSpent += tx.amount;
+  }
+  let completedBonus = 0;
+  let currentBonus = 0;
+  for (const e of income) {
+    if (current && e.occurredAt >= current.start) currentBonus += e.amount;
+    else completedBonus += e.amount;
+  }
+
+  const completedCount = Math.max(0, cycles.length - 1);
+  const saved =
+    settings.incomeAmount * completedCount + completedBonus - completedSpent;
+  const currentCycleDelta = current
+    ? settings.incomeAmount + currentBonus - currentSpent
+    : 0;
 
   const remaining = Math.max(0, goal.targetAmount - saved);
   const achieved = saved >= goal.targetAmount;
@@ -132,14 +153,13 @@ export async function computeGoalProgress(
       return settings.incomeAmount + b - s;
     });
     const avg = perCycle.reduce((sum, n) => sum + n, 0) / perCycle.length;
-    if (avg > 0) {
+    if (avg > 0 && current) {
       etaCycles = Math.ceil(remaining / avg);
       // Approximate: future cycles assumed as long as the current one.
-      const current = cycles[0];
       const cycleMs = current.end.getTime() - current.start.getTime();
       etaDate = new Date(current.end.getTime() + (etaCycles - 1) * cycleMs);
     }
   }
 
-  return { saved, pct, remaining, achieved, etaCycles, etaDate };
+  return { saved, pct, remaining, achieved, currentCycleDelta, etaCycles, etaDate };
 }
