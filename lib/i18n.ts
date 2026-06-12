@@ -161,6 +161,7 @@ const STRINGS = {
     // Budgets
     budget: "Budget",
     budgetPlaceholder: "No budget",
+    category: "Category",
 
     // Recurring
     recurring: "Recurring",
@@ -339,6 +340,7 @@ const STRINGS = {
     // Budgets
     budget: "Бюджет",
     budgetPlaceholder: "Без бюджет",
+    category: "Категория",
 
     // Recurring
     recurring: "Повтарящи се",

@@ -146,46 +146,56 @@ export function CategoriesCard({
                   className="flex flex-wrap items-center gap-2 py-2 text-sm"
                 >
                   {isEditing ? (
-                    <>
-                      <input
-                        type="text"
-                        value={editEmoji}
-                        onChange={(e) => setEditEmoji(e.target.value)}
-                        maxLength={4}
-                        className="w-16 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-center text-sm outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={editLabel}
-                        onChange={(e) => setEditLabel(e.target.value)}
-                        className="min-w-0 flex-1 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-sm outline-none"
-                      />
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={editBudget}
-                        onChange={(e) => setEditBudget(e.target.value)}
-                        placeholder={labels.budgetPlaceholder}
-                        aria-label={labels.budget}
-                        className="w-24 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-sm outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => saveRename(c.id)}
-                        disabled={isPending}
-                        className="rounded-md bg-[color:var(--foreground)] px-2 py-1 text-xs font-medium text-[color:var(--background)] disabled:opacity-50"
-                      >
-                        {labels.save}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        disabled={isPending}
-                        className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-                      >
-                        {labels.cancel}
-                      </button>
-                    </>
+                    <div className="grid w-full grid-cols-[4.5rem_1fr] gap-3 sm:grid-cols-[4.5rem_1fr_9rem]">
+                      <label className="flex min-w-0 flex-col gap-1 text-xs text-[color:var(--muted)]">
+                        {labels.emoji}
+                        <input
+                          type="text"
+                          value={editEmoji}
+                          onChange={(e) => setEditEmoji(e.target.value)}
+                          maxLength={4}
+                          className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-center text-sm outline-none focus:border-[color:var(--foreground)]/30"
+                        />
+                      </label>
+                      <label className="flex min-w-0 flex-col gap-1 text-xs text-[color:var(--muted)]">
+                        {labels.label}
+                        <input
+                          type="text"
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                          className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm outline-none focus:border-[color:var(--foreground)]/30"
+                        />
+                      </label>
+                      <label className="col-span-2 flex min-w-0 flex-col gap-1 text-xs text-[color:var(--muted)] sm:col-span-1">
+                        {labels.budget}
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={editBudget}
+                          onChange={(e) => setEditBudget(e.target.value)}
+                          placeholder={labels.budgetPlaceholder}
+                          className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm outline-none focus:border-[color:var(--foreground)]/30"
+                        />
+                      </label>
+                      <div className="col-span-2 flex items-center gap-3 sm:col-span-3">
+                        <button
+                          type="button"
+                          onClick={() => saveRename(c.id)}
+                          disabled={isPending}
+                          className="rounded-md bg-[color:var(--foreground)] px-3 py-1.5 text-xs font-medium text-[color:var(--background)] disabled:opacity-50"
+                        >
+                          {labels.save}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          disabled={isPending}
+                          className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+                        >
+                          {labels.cancel}
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <span className="w-8 text-center text-base">{c.emoji}</span>

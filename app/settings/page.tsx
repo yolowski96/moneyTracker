@@ -569,9 +569,10 @@ export default async function SettingsPage() {
               categories={categories.filter((c) => !c.archived)}
               locale={locale}
               labels={{
-                merchantPlaceholder: t(locale, "merchantPlaceholder"),
-                amountPlaceholder: t(locale, "amountPlaceholder"),
-                notePlaceholder: t(locale, "notePlaceholder"),
+                merchant: t(locale, "merchantPlaceholder"),
+                amount: t(locale, "amountPlaceholder"),
+                note: t(locale, "notePlaceholder"),
+                category: t(locale, "category"),
                 dayOfMonth: t(locale, "dayOfMonth"),
                 dayN: t(locale, "dayN"),
                 categoryNone: t(locale, "categoryNone"),

@@ -7,9 +7,10 @@ import { categoryLabel, type Locale } from "@/lib/i18n";
 import { formatAmount } from "@/lib/format";
 
 type Labels = {
-  merchantPlaceholder: string;
-  amountPlaceholder: string;
-  notePlaceholder: string;
+  merchant: string;
+  amount: string;
+  note: string;
+  category: string;
   dayOfMonth: string;
   dayN: string;
   categoryNone: string;
@@ -44,6 +45,11 @@ type Draft = {
 };
 
 const EMPTY_DRAFT: Draft = { merchant: "", amount: "", day: "1", category: "", note: "" };
+
+const INPUT_CLS =
+  "w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)] outline-none focus:border-[color:var(--foreground)]/30";
+
+const FIELD_CLS = "flex min-w-0 flex-col gap-1 text-xs text-[color:var(--muted)]";
 
 export function RecurringCard({
   rules,
@@ -101,56 +107,65 @@ export function RecurringCard({
     startTransition(() => onDelete(fd));
   }
 
-  const inputCls =
-    "rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-sm outline-none focus:border-[color:var(--foreground)]/30";
-
+  // Labeled fields laid out by the parent grid: 2 columns on phones, 4 on
+  // larger screens. Merchant/category/note span the full row on phones.
   function fields(d: Draft, set: (d: Draft) => void) {
     return (
       <>
-        <input
-          type="text"
-          value={d.merchant}
-          onChange={(e) => set({ ...d, merchant: e.target.value })}
-          placeholder={labels.merchantPlaceholder}
-          className={`min-w-0 flex-1 ${inputCls}`}
-        />
-        <input
-          type="text"
-          inputMode="decimal"
-          value={d.amount}
-          onChange={(e) => set({ ...d, amount: e.target.value })}
-          placeholder={labels.amountPlaceholder}
-          className={`w-20 ${inputCls}`}
-        />
-        <input
-          type="number"
-          min={1}
-          max={31}
-          value={d.day}
-          onChange={(e) => set({ ...d, day: e.target.value })}
-          aria-label={labels.dayOfMonth}
-          title={labels.dayOfMonth}
-          className={`w-16 ${inputCls}`}
-        />
-        <select
-          value={d.category}
-          onChange={(e) => set({ ...d, category: e.target.value })}
-          className={`min-w-0 flex-1 ${inputCls}`}
-        >
-          <option value="">{labels.categoryNone}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.emoji} {categoryLabel(c.label, locale)}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          value={d.note}
-          onChange={(e) => set({ ...d, note: e.target.value })}
-          placeholder={labels.notePlaceholder}
-          className={`min-w-0 flex-1 ${inputCls}`}
-        />
+        <label className={`${FIELD_CLS} col-span-2`}>
+          {labels.merchant}
+          <input
+            type="text"
+            value={d.merchant}
+            onChange={(e) => set({ ...d, merchant: e.target.value })}
+            className={INPUT_CLS}
+          />
+        </label>
+        <label className={FIELD_CLS}>
+          {labels.amount}
+          <input
+            type="text"
+            inputMode="decimal"
+            value={d.amount}
+            onChange={(e) => set({ ...d, amount: e.target.value })}
+            className={INPUT_CLS}
+          />
+        </label>
+        <label className={FIELD_CLS}>
+          {labels.dayOfMonth}
+          <input
+            type="number"
+            min={1}
+            max={31}
+            value={d.day}
+            onChange={(e) => set({ ...d, day: e.target.value })}
+            className={INPUT_CLS}
+          />
+        </label>
+        <label className={`${FIELD_CLS} col-span-2`}>
+          {labels.category}
+          <select
+            value={d.category}
+            onChange={(e) => set({ ...d, category: e.target.value })}
+            className={INPUT_CLS}
+          >
+            <option value="">{labels.categoryNone}</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.emoji} {categoryLabel(c.label, locale)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`${FIELD_CLS} col-span-2`}>
+          {labels.note}
+          <input
+            type="text"
+            value={d.note}
+            onChange={(e) => set({ ...d, note: e.target.value })}
+            className={INPUT_CLS}
+          />
+        </label>
       </>
     );
   }
@@ -161,16 +176,18 @@ export function RecurringCard({
         <div className="mb-2 text-xs uppercase tracking-widest text-[color:var(--muted)]">
           {labels.addRecurring}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {fields(draft, setDraft)}
-          <button
-            type="button"
-            onClick={add}
-            disabled={isPending || !draft.merchant.trim() || !draft.amount.trim()}
-            className="w-full shrink-0 rounded-md bg-[color:var(--foreground)] px-3 py-2 text-sm font-medium text-[color:var(--background)] disabled:opacity-50 sm:w-auto"
-          >
-            {labels.addRecurring}
-          </button>
+          <div className="col-span-2 sm:col-span-4">
+            <button
+              type="button"
+              onClick={add}
+              disabled={isPending || !draft.merchant.trim() || !draft.amount.trim()}
+              className="w-full rounded-md bg-[color:var(--foreground)] px-3 py-2 text-sm font-medium text-[color:var(--background)] disabled:opacity-50 sm:w-auto"
+            >
+              {labels.addRecurring}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -188,30 +205,32 @@ export function RecurringCard({
                 <li
                   key={r.id}
                   className={
-                    "flex flex-wrap items-center gap-2 py-2 text-sm" +
+                    "flex flex-wrap items-center gap-2 py-3 text-sm" +
                     (r.active ? "" : " opacity-60")
                   }
                 >
                   {isEditing ? (
-                    <>
+                    <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
                       {fields(edit, setEdit)}
-                      <button
-                        type="button"
-                        onClick={() => saveEdit(r.id)}
-                        disabled={isPending}
-                        className="rounded-md bg-[color:var(--foreground)] px-2 py-1 text-xs font-medium text-[color:var(--background)] disabled:opacity-50"
-                      >
-                        {labels.save}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        disabled={isPending}
-                        className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-                      >
-                        {labels.cancel}
-                      </button>
-                    </>
+                      <div className="col-span-2 flex items-center gap-3 sm:col-span-4">
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(r.id)}
+                          disabled={isPending}
+                          className="rounded-md bg-[color:var(--foreground)] px-3 py-1.5 text-xs font-medium text-[color:var(--background)] disabled:opacity-50"
+                        >
+                          {labels.save}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          disabled={isPending}
+                          className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+                        >
+                          {labels.cancel}
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <span className="w-8 text-center text-base" aria-hidden>
