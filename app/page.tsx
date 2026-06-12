@@ -1,55 +1,19 @@
-import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { formatAmount, formatAmountWhole, formatDateShort, parseAmount } from "@/lib/format";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
 import { getActiveCategories, getCategory } from "@/lib/categories";
-import { t, categoryLabel } from "@/lib/i18n";
-import { bcp47, currencySymbol } from "@/lib/format";
-import { AddTransactionForm } from "./add-form";
-import { AddIncomeForm } from "./add-income-form";
-import { ThemeToggle } from "./theme-toggle";
-import { InboxBell } from "./inbox-bell";
-import { MobileMenu } from "./mobile-menu";
-import { RecurringTrigger } from "./recurring-trigger";
-import { updateTag } from "next/cache";
-import { userTxnTag, userIncomeTag } from "@/lib/cache-tags";
-import { log } from "@/lib/log";
+import { t } from "@/lib/i18n";
 import { requireUser } from "@/lib/session";
-import { LogoutIcon } from "./logout-icon";
 import {
   getCycleIncomeEvents,
   getCycleTransactions,
   getPendingCount,
   getRecentTransactions,
 } from "@/lib/queries";
-
-function groupByDay<T extends { occurredAt: Date }>(items: T[]) {
-  const map = new Map<string, T[]>();
-  for (const item of items) {
-    const key = item.occurredAt.toISOString().slice(0, 10);
-    const arr = map.get(key) ?? [];
-    arr.push(item);
-    map.set(key, arr);
-  }
-  return [...map.entries()];
-}
-
-function formatDayLabel(iso: string, locale: "en" | "bg") {
-  const d = new Date(iso + "T00:00:00");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (d.getTime() === today.getTime()) return t(locale, "today");
-  if (d.getTime() === yesterday.getTime()) return t(locale, "yesterday");
-  return d.toLocaleDateString(bcp47(locale), {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-const DAYS_PER_PAGE = 5;
+import { addTransaction, runRecurring } from "./actions";
+import { AppHeader } from "./app-header";
+import { CycleSummary } from "./cycle-summary";
+import { AddTransactionForm } from "./add-form";
+import { TransactionList } from "./transaction-list";
+import { RecurringTrigger } from "./recurring-trigger";
 
 export default async function Home({
   searchParams,
@@ -88,453 +52,32 @@ export default async function Home({
     if (c) categoryById.set(c.id, c);
   }
 
-  const cycleTotal = cycleTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const bonusTotal = cycleIncome.reduce((sum, e) => sum + e.amount, 0);
-  const totalIncome = settings.incomeAmount + bonusTotal;
-
-  const byCategory = new Map<string | null, number>();
-  for (const tx of cycleTransactions) {
-    byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + tx.amount);
-  }
-  // Budgeted categories are always listed (even with no spend this cycle);
-  // unbudgeted top spenders fill the remaining slots.
-  const budgetRows = categories
-    .flatMap((c) =>
-      c.budget != null
-        ? [{ cat: c, budget: c.budget, total: byCategory.get(c.id) ?? 0 }]
-        : [],
-    )
-    .sort((a, b) => b.total - a.total);
-  const budgetedIds = new Set(budgetRows.map((b) => b.cat.id));
-  const categoryRows = [...byCategory.entries()]
-    .filter(([catId]) => !catId || !budgetedIds.has(catId))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, Math.max(0, 6 - budgetRows.length));
-
-  const grouped = groupByDay(recentTransactions);
-  const totalPages = Math.max(1, Math.ceil(grouped.length / DAYS_PER_PAGE));
   const sp = await searchParams;
-  const rawPage = Number.parseInt(String(sp?.p ?? "1"), 10);
-  const page = Number.isFinite(rawPage)
-    ? Math.min(Math.max(rawPage, 1), totalPages)
-    : 1;
-  const pageDays = grouped.slice(
-    (page - 1) * DAYS_PER_PAGE,
-    page * DAYS_PER_PAGE,
-  );
-
-  async function addTransaction(formData: FormData) {
-    "use server";
-    const { requireUserId } = await import("@/lib/session");
-    const uid = await requireUserId();
-    const amount = parseAmount(formData.get("amount"));
-    const merchant = String(formData.get("merchant") ?? "").trim();
-    const category = String(formData.get("category") ?? "").trim();
-    if (!Number.isFinite(amount) || amount <= 0) {
-      log("action.addTransaction", 400, "invalid_input", "rejected form submission", {
-        amountRaw: formData.get("amount"),
-        merchantLen: merchant.length,
-        userId: uid,
-      });
-      return;
-    }
-    const settingsRow = await getSettings(uid);
-    let categoryId: string | null = null;
-    if (category) {
-      const cat = await prisma.category.findFirst({
-        where: { id: category, userId: uid },
-        select: { id: true },
-      });
-      categoryId = cat?.id ?? null;
-    }
-    const row = await prisma.transaction.create({
-      data: {
-        userId: uid,
-        amount: Math.round(amount * 100),
-        currency: settingsRow.currency,
-        merchant,
-        category: categoryId,
-        source: "web",
-      },
-    });
-    log("action.addTransaction", 201, "created", `transaction ${row.id}`, {
-      id: row.id,
-      amount: row.amount,
-      merchant: row.merchant,
-      category: row.category,
-      userId: uid,
-    });
-    updateTag(userTxnTag(uid));
-  }
-
-  async function deleteTransaction(formData: FormData) {
-    "use server";
-    const { requireUserId } = await import("@/lib/session");
-    const uid = await requireUserId();
-    const id = String(formData.get("id") ?? "");
-    if (!id) {
-      log("action.deleteTransaction", 400, "missing_id", "no id in form");
-      return;
-    }
-    const result = await prisma.transaction.deleteMany({
-      where: { id, userId: uid },
-    });
-    log("action.deleteTransaction", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `transaction ${id}`, {
-      id,
-      userId: uid,
-      count: result.count,
-    });
-    updateTag(userTxnTag(uid));
-  }
-
-  async function runRecurring() {
-    "use server";
-    const { requireUserId } = await import("@/lib/session");
-    const uid = await requireUserId();
-    const { materializeDueRules } = await import("@/lib/recurring");
-    const inserted = await materializeDueRules(uid);
-    if (inserted > 0) updateTag(userTxnTag(uid));
-  }
-
-  async function addIncomeEvent(formData: FormData) {
-    "use server";
-    const { requireUserId } = await import("@/lib/session");
-    const uid = await requireUserId();
-    const amount = parseAmount(formData.get("amount"));
-    const note = String(formData.get("note") ?? "").trim();
-    if (!Number.isFinite(amount) || amount <= 0) {
-      log("action.addIncomeEvent", 400, "invalid_amount", "rejected form submission", {
-        amountRaw: formData.get("amount"),
-        userId: uid,
-      });
-      return;
-    }
-    const settingsRow = await getSettings(uid);
-    const row = await prisma.incomeEvent.create({
-      data: {
-        userId: uid,
-        amount: Math.round(amount * 100),
-        currency: settingsRow.currency,
-        note: note || null,
-      },
-    });
-    log("action.addIncomeEvent", 201, "created", `income event ${row.id}`, {
-      id: row.id,
-      amount: row.amount,
-      note: row.note,
-      userId: uid,
-    });
-    updateTag(userIncomeTag(uid));
-  }
-
-  async function deleteIncomeEvent(formData: FormData) {
-    "use server";
-    const { requireUserId } = await import("@/lib/session");
-    const uid = await requireUserId();
-    const id = String(formData.get("id") ?? "");
-    if (!id) {
-      log("action.deleteIncomeEvent", 400, "missing_id", "no id in form");
-      return;
-    }
-    const result = await prisma.incomeEvent.deleteMany({
-      where: { id, userId: uid },
-    });
-    log("action.deleteIncomeEvent", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", `income event ${id}`, {
-      id,
-      userId: uid,
-      count: result.count,
-    });
-    updateTag(userIncomeTag(uid));
-  }
+  const requestedPage = Number.parseInt(String(sp?.p ?? "1"), 10);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
       <RecurringTrigger action={runRecurring} />
-      <header className="mb-10 sm:mb-12">
-        <div className="flex items-center justify-between gap-3 sm:hidden">
-          <MobileMenu
-            ariaLabel={t(locale, "menu")}
-            title={t(locale, "appName")}
-            userEmail={userEmail}
-            signOutLabel={t(locale, "signOut")}
-            items={[
-              { href: "/charts", label: t(locale, "charts") },
-              { href: "/goals", label: t(locale, "goals") },
-              { href: "/settings", label: t(locale, "settings") },
-            ]}
-          />
-          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
-            {t(locale, "appName")}
-          </div>
-          <div className="flex items-center gap-2">
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-          </div>
-        </div>
-        <div className="mt-6 sm:mt-0 sm:flex sm:items-start sm:justify-between sm:gap-4">
-          <div className="min-w-0">
-            <h1 className="hidden text-2xl font-semibold tracking-tight sm:block sm:text-3xl">
-              {t(locale, "appName")}
-            </h1>
-            <p className="text-sm text-[color:var(--muted)] sm:mt-1">
-              {t(locale, "tagline")}
-            </p>
-          </div>
-          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
-            <Link
-              href="/charts"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "charts")}
-            </Link>
-            <Link
-              href="/goals"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "goals")}
-            </Link>
-            <Link
-              href="/settings"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "settings")}
-            </Link>
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-            <LogoutIcon ariaLabel={t(locale, "signOut")} />
-          </nav>
-        </div>
-      </header>
+      <AppHeader
+        current="home"
+        locale={locale}
+        userEmail={userEmail}
+        pendingCount={pendingCount}
+        title={t(locale, "appName")}
+        tagline={t(locale, "tagline")}
+      />
 
-      <section className="mb-10 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-        <div className="flex items-baseline justify-between">
-          <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            {cycle.label}
-          </div>
-          <div className="text-xs text-[color:var(--muted)]">
-            {cycle.daysUntilReset === 0
-              ? t(locale, "resetsToday")
-              : `${t(locale, "resetsIn")} ${cycle.daysUntilReset}d`}
-          </div>
-        </div>
-
-        {totalIncome > 0 ? (
-          <>
-            <div className="mt-3 flex items-baseline justify-between">
-              <div>
-                <div className="text-xs text-[color:var(--muted)]">
-                  {t(locale, "remaining")}
-                </div>
-                <div
-                  className={
-                    "text-4xl font-medium tabular-nums " +
-                    (totalIncome - cycleTotal < 0 ? "text-red-500" : "")
-                  }
-                >
-                  {formatAmount(totalIncome - cycleTotal, locale, userCurrency)}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-[color:var(--muted)]">
-                  {t(locale, "incomeDotSpent")}
-                </div>
-                <div className="font-mono text-sm tabular-nums">
-                  {formatAmount(totalIncome, locale, userCurrency)}{" "}
-                  <span className="text-[color:var(--muted)]">
-                    {"\u00B7"} {formatAmount(cycleTotal, locale, userCurrency)}
-                  </span>
-                </div>
-                {bonusTotal > 0 && (
-                  <div className="mt-0.5 text-xs text-[color:var(--muted)]">
-                    {formatAmount(settings.incomeAmount, locale, userCurrency)} {t(locale, "base")} {"+"}{" "}
-                    {formatAmount(bonusTotal, locale, userCurrency)} {t(locale, "extra")}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {(() => {
-              const pct = Math.min(
-                100,
-                Math.round((cycleTotal / totalIncome) * 100),
-              );
-              const over = cycleTotal > totalIncome;
-              return (
-                <div className="mt-4">
-                  <div className="h-2 overflow-hidden rounded-full bg-[color:var(--border)]">
-                    <div
-                      className={
-                        "h-full transition-all " +
-                        (over
-                          ? "bg-red-500"
-                          : pct > 80
-                            ? "bg-amber-500"
-                            : "bg-[color:var(--foreground)]/70")
-                      }
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
-                    <span>
-                      {pct}{t(locale, "pctUsed")} {"\u00B7"} {cycleTransactions.length} {t(locale, "txns")}
-                    </span>
-                    <span>
-                      {formatDateShort(cycle.start, locale)} {"\u2192"}{" "}
-                      {formatDateShort(
-                        new Date(cycle.end.getTime() - 86_400_000),
-                        locale,
-                      )}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-          </>
-        ) : (
-          <>
-            <div className="mt-2 text-4xl font-medium tabular-nums">
-              {formatAmount(cycleTotal, locale, userCurrency)}
-            </div>
-            <div className="mt-1 text-xs text-[color:var(--muted)]">
-              {cycleTransactions.length} {t(locale, "transactions")} {"\u00B7"}{" "}
-              <Link href="/settings" className="underline">
-                {t(locale, "setYourIncome")}
-              </Link>
-              {t(locale, "toSeeWhatsLeft")}
-            </div>
-          </>
-        )}
-
-        <div className="mt-5 border-t border-[color:var(--border)] pt-4">
-          <div className="mb-2 flex items-baseline justify-between">
-            <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-              {t(locale, "extraIncomeThis")} {t(locale, settings.period)}
-            </div>
-            <div className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
-              {formatAmount(bonusTotal, locale, userCurrency)}
-            </div>
-          </div>
-          {cycleIncome.length > 0 && (
-            <ul className="mb-3 divide-y divide-[color:var(--border)]">
-              {cycleIncome.map((e) => (
-                <li
-                  key={e.id}
-                  className="group flex items-center justify-between py-2 text-sm"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
-                    <span aria-hidden className="text-base">
-                      {"\u{1F4B0}"}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">
-                        {e.note || t(locale, "extraIncome")}
-                      </div>
-                      <div className="mt-0.5 text-xs text-[color:var(--muted)]">
-                        {formatDateShort(e.occurredAt, locale)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm tabular-nums">
-                      {"+"}
-                      {formatAmount(e.amount, locale, e.currency)}
-                    </span>
-                    <Link
-                      href={`/income/edit/${e.id}`}
-                      aria-label={t(locale, "edit")}
-                      className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100"
-                    >
-                      {"\u270E"}
-                    </Link>
-                    <form action={deleteIncomeEvent}>
-                      <input type="hidden" name="id" value={e.id} />
-                      <button
-                        type="submit"
-                        aria-label={t(locale, "remove")}
-                        className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
-                      >
-                        &times;
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <AddIncomeForm
-            action={addIncomeEvent}
-            currencySymbol={currencySymbol(locale, userCurrency)}
-            labels={{
-              addExtraIncome: t(locale, "extraIncome"),
-              add: t(locale, "add"),
-              adding: t(locale, "add"),
-              cancel: t(locale, "cancel"),
-              notePlaceholder: t(locale, "notePlaceholder"),
-            }}
-          />
-        </div>
-
-        {(budgetRows.length > 0 || categoryRows.length > 0) && (
-          <ul className="mt-5 space-y-1.5 border-t border-[color:var(--border)] pt-4">
-            {budgetRows.map(({ cat, budget, total }) => {
-              const pct = Math.min(100, Math.round((total / budget) * 100));
-              const over = total > budget;
-              return (
-                <li key={cat.id} className="flex items-center gap-3 text-sm">
-                  <span className="w-24 shrink-0 truncate">
-                    {cat.emoji} {categoryLabel(cat.label, locale)}
-                  </span>
-                  <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
-                    <div
-                      className={
-                        "h-full " +
-                        (over
-                          ? "bg-red-500"
-                          : pct > 80
-                            ? "bg-amber-500"
-                            : "bg-[color:var(--foreground)]/70")
-                      }
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="w-28 shrink-0 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
-                    <span className={over ? "text-red-500" : ""}>
-                      {formatAmountWhole(total, locale, userCurrency)}
-                    </span>
-                    {" / "}
-                    {formatAmountWhole(budget, locale, userCurrency)}
-                  </span>
-                </li>
-              );
-            })}
-            {categoryRows.map(([catId, total]) => {
-              const cat = catId ? categoryById.get(catId) ?? null : null;
-              const pct = cycleTotal
-                ? Math.round((total / cycleTotal) * 100)
-                : 0;
-              return (
-                <li key={catId ?? "uncat"} className="flex items-center gap-3 text-sm">
-                  <span className="w-24 shrink-0 truncate">
-                    {cat ? `${cat.emoji} ${categoryLabel(cat.label, locale)}` : "\u2014"}
-                  </span>
-                  <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
-                    <div
-                      className="h-full bg-[color:var(--foreground)]/70"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="w-28 shrink-0 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
-                    {formatAmount(total, locale, userCurrency)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <CycleSummary
+        locale={locale}
+        currency={userCurrency}
+        cycle={cycle}
+        period={settings.period}
+        baseIncome={settings.incomeAmount}
+        transactions={cycleTransactions}
+        income={cycleIncome}
+        categories={categories}
+        categoryById={categoryById}
+      />
 
       <AddTransactionForm
         action={addTransaction}
@@ -547,109 +90,13 @@ export default async function Home({
         }}
       />
 
-      <section className="mt-12 space-y-8">
-        {grouped.length === 0 && (
-          <div className="text-sm text-[color:var(--muted)]">
-            {t(locale, "noTransactionsYet")}{" "}
-            <code className="font-mono text-xs">/api/transactions</code>.
-          </div>
-        )}
-        {pageDays.map(([day, items]) => {
-          const dayTotal = items.reduce((sum, t) => sum + t.amount, 0);
-          return (
-            <div key={day}>
-              <div className="mb-2 flex items-baseline justify-between border-b border-[color:var(--border)] pb-2">
-                <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-                  {formatDayLabel(day, locale)}
-                </div>
-                <div className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
-                  {formatAmount(dayTotal, locale, userCurrency)}
-                </div>
-              </div>
-              <ul className="divide-y divide-[color:var(--border)]">
-                {items.map((tx) => {
-                  const cat = tx.category ? categoryById.get(tx.category) ?? null : null;
-                  return (
-                    <li
-                      key={tx.id}
-                      className="group flex items-center justify-between py-3"
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
-                        <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[color:var(--surface)] text-base"
-                          aria-hidden
-                        >
-                          {cat?.emoji ?? "\u{1F4B6}"}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm">{tx.merchant}</div>
-                          {(cat || tx.note) && (
-                            <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
-                              {[cat ? categoryLabel(cat.label, locale) : null, tx.note].filter(Boolean).join(" \u00B7 ")}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-sm tabular-nums">
-                          {formatAmount(tx.amount, locale, tx.currency)}
-                        </span>
-                        <Link
-                          href={`/edit/${tx.id}`}
-                          aria-label={t(locale, "edit")}
-                          className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--foreground)] sm:opacity-0 sm:group-hover:opacity-100"
-                        >
-                          {"\u270E"}
-                        </Link>
-                        <form action={deleteTransaction}>
-                          <input type="hidden" name="id" value={tx.id} />
-                          <button
-                            type="submit"
-                            aria-label={t(locale, "delete")}
-                            className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
-                          >
-                            &times;
-                          </button>
-                        </form>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          );
-        })}
-
-        {totalPages > 1 && (
-          <nav className="flex items-center justify-between border-t border-[color:var(--border)] pt-4">
-            {page > 1 ? (
-              <Link
-                href={`/?p=${page - 1}`}
-                prefetch={false}
-                className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-              >
-                {"←"} {t(locale, "newer")}
-              </Link>
-            ) : (
-              <span />
-            )}
-            <span className="text-xs tabular-nums text-[color:var(--muted)]">
-              {t(locale, "pageOf", { n: page, total: totalPages })}
-            </span>
-            {page < totalPages ? (
-              <Link
-                href={`/?p=${page + 1}`}
-                prefetch={false}
-                className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-              >
-                {t(locale, "older")} {"→"}
-              </Link>
-            ) : (
-              <span />
-            )}
-          </nav>
-        )}
-      </section>
+      <TransactionList
+        locale={locale}
+        currency={userCurrency}
+        transactions={recentTransactions}
+        requestedPage={requestedPage}
+        categoryById={categoryById}
+      />
     </main>
   );
 }

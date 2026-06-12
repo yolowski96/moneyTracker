@@ -24,10 +24,7 @@ import {
   getPendingCount,
 } from "@/lib/queries";
 import { log } from "@/lib/log";
-import { ThemeToggle } from "../theme-toggle";
-import { InboxBell } from "../inbox-bell";
-import { MobileMenu } from "../mobile-menu";
-import { LogoutIcon } from "../logout-icon";
+import { AppHeader } from "../app-header";
 
 const PERIODS_OF_HISTORY = 12;
 
@@ -222,66 +219,20 @@ export async function ChartsView({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16 sm:py-24">
-      <header className="mb-10">
-        <div className="flex items-center justify-between gap-3 sm:hidden">
-          <MobileMenu
-            ariaLabel={t(locale, "menu")}
-            title={t(locale, "appName")}
-            userEmail={userEmail}
-            signOutLabel={t(locale, "signOut")}
-            items={[
-              { href: "/", label: t(locale, "appName") },
-              { href: "/goals", label: t(locale, "goals") },
-              { href: "/settings", label: t(locale, "settings") },
-            ]}
-          />
-          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
-            {t(locale, "appName")}
-          </div>
-          <div className="flex items-center gap-2">
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-          </div>
-        </div>
-        <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "charts")}</h1>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">
-              {filterCat
-                ? `${t(locale, "chartsLooking")} ${filterCat.emoji} ${categoryLabel(filterCat.label, locale)} · ${primary.title}.`
-                : primary.mode === "period"
-                  ? `${t(locale, "chartsLooking")} ${primary.title}.`
-                  : t(locale, "chartsTagline")}
-            </p>
-          </div>
-          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
-            <Link
-              href="/goals"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "goals")}
-            </Link>
-            <Link
-              href="/settings"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "settings")}
-            </Link>
-            <Link
-              href="/"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {"←"} {t(locale, "back")}
-            </Link>
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-            <LogoutIcon ariaLabel={t(locale, "signOut")} />
-          </nav>
-        </div>
-      </header>
+      <AppHeader
+        current="charts"
+        locale={locale}
+        userEmail={userEmail}
+        pendingCount={pendingCount}
+        title={t(locale, "charts")}
+        tagline={
+          filterCat
+            ? `${t(locale, "chartsLooking")} ${filterCat.emoji} ${categoryLabel(filterCat.label, locale)} · ${primary.title}.`
+            : primary.mode === "period"
+              ? `${t(locale, "chartsLooking")} ${primary.title}.`
+              : t(locale, "chartsTagline")
+        }
+      />
 
       {/* Period-detail navigation */}
       {primary.mode === "period" && prevCycle && nextCycle && !filterCat && (

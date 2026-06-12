@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
@@ -20,10 +19,7 @@ import {
   computeGoalProgress,
 } from "@/lib/goals";
 import { getPendingCount } from "@/lib/queries";
-import { ThemeToggle } from "../theme-toggle";
-import { InboxBell } from "../inbox-bell";
-import { MobileMenu } from "../mobile-menu";
-import { LogoutIcon } from "../logout-icon";
+import { AppHeader } from "../app-header";
 
 const INPUT_CLS =
   "w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)] outline-none focus:border-[color:var(--foreground)]/30";
@@ -193,64 +189,14 @@ export default async function GoalsPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <header className="mb-10">
-        <div className="flex items-center justify-between gap-3 sm:hidden">
-          <MobileMenu
-            ariaLabel={t(locale, "menu")}
-            title={t(locale, "appName")}
-            userEmail={userEmail}
-            signOutLabel={t(locale, "signOut")}
-            items={[
-              { href: "/", label: t(locale, "appName") },
-              { href: "/charts", label: t(locale, "charts") },
-              { href: "/settings", label: t(locale, "settings") },
-            ]}
-          />
-          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
-            {t(locale, "appName")}
-          </div>
-          <div className="flex items-center gap-2">
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-          </div>
-        </div>
-        <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {t(locale, "goals")}
-            </h1>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">
-              {t(locale, "goalsTagline")}
-            </p>
-          </div>
-          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
-            <Link
-              href="/charts"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "charts")}
-            </Link>
-            <Link
-              href="/settings"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "settings")}
-            </Link>
-            <Link
-              href="/"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {"←"} {t(locale, "back")}
-            </Link>
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-            <LogoutIcon ariaLabel={t(locale, "signOut")} />
-          </nav>
-        </div>
-      </header>
+      <AppHeader
+        current="goals"
+        locale={locale}
+        userEmail={userEmail}
+        pendingCount={pendingCount}
+        title={t(locale, "goals")}
+        tagline={t(locale, "goalsTagline")}
+      />
 
       {activeGoal && progress ? (
         <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">

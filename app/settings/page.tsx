@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -38,10 +37,7 @@ import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
 import { RecurringCard } from "./recurring-card";
-import { ThemeToggle } from "../theme-toggle";
-import { InboxBell } from "../inbox-bell";
-import { MobileMenu } from "../mobile-menu";
-import { LogoutIcon } from "../logout-icon";
+import { AppHeader } from "../app-header";
 import { getPendingCount } from "@/lib/queries";
 
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -381,69 +377,15 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <header className="mb-10">
-        <div className="flex items-center justify-between gap-3 sm:hidden">
-          <MobileMenu
-            ariaLabel={t(locale, "menu")}
-            title={t(locale, "appName")}
-            userEmail={user?.email ?? null}
-            signOutLabel={t(locale, "signOut")}
-            items={[
-              { href: "/", label: t(locale, "appName") },
-              { href: "/charts", label: t(locale, "charts") },
-              { href: "/goals", label: t(locale, "goals") },
-            ]}
-          />
-          <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
-            {t(locale, "appName")}
-          </div>
-          <div className="flex items-center gap-2">
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-          </div>
-        </div>
-        <div className="mt-6 sm:mt-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {t(locale, "settings")}
-            </h1>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">
-              {t(locale, "settingsTagline")}
-            </p>
-            {user?.email && (
-              <p className="mt-1 text-xs text-[color:var(--muted)]">
-                {user.email}
-              </p>
-            )}
-          </div>
-          <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
-            <Link
-              href="/charts"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "charts")}
-            </Link>
-            <Link
-              href="/goals"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {t(locale, "goals")}
-            </Link>
-            <Link
-              href="/"
-              prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-            >
-              {"\u2190"} {t(locale, "back")}
-            </Link>
-            <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
-            <ThemeToggle />
-            <LogoutIcon ariaLabel={t(locale, "signOut")} />
-          </nav>
-        </div>
-      </header>
+      <AppHeader
+        current="settings"
+        locale={locale}
+        userEmail={user?.email ?? null}
+        pendingCount={pendingCount}
+        title={t(locale, "settings")}
+        tagline={t(locale, "settingsTagline")}
+        subtitle={user?.email ?? undefined}
+      />
 
       <div className="divide-y divide-[color:var(--border)] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
         <details className="group">
