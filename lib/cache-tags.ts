@@ -23,3 +23,7 @@ export function userSettingsTag(userId: string): string {
 export function userCategoriesTag(userId: string): string {
   return `categories:${userId}`;
 }
+
+export function userRecurringTag(userId: string): string {
+  return `recurring:${userId}`;
+}

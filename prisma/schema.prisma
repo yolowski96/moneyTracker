@@ -17,10 +17,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  transactions Transaction[]
-  incomeEvents IncomeEvent[]
-  categories   Category[]
-  settings     Settings?
+  transactions   Transaction[]
+  incomeEvents   IncomeEvent[]
+  categories     Category[]
+  settings       Settings?
+  recurringRules RecurringRule[]
 }
 
 model Transaction {
@@ -74,9 +75,28 @@ model Category {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   label     String
   emoji     String
+  budget    Int?     // cents per cycle, null = no budget
   position  Int      @default(0)
   archived  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([userId, archived, position])
+}
+
+model RecurringRule {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Int      // cents
+  currency   String   @default("EUR")
+  merchant   String
+  category   String?  // category id
+  note       String?
+  dayOfMonth Int      // 1-31, clamped to last day of short months
+  active     Boolean  @default(true)
+  nextRunAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, active, nextRunAt])
 }

@@ -3,10 +3,13 @@
 import { useState, useTransition } from "react";
 import type { Category } from "@/lib/categories";
 import { categoryLabel, type Locale } from "@/lib/i18n";
+import { formatAmount } from "@/lib/format";
 
 type Labels = {
   emoji: string;
   label: string;
+  budget: string;
+  budgetPlaceholder: string;
   emojiPlaceholder: string;
   labelPlaceholder: string;
   addCategory: string;
@@ -24,6 +27,7 @@ type Labels = {
 type Props = {
   categories: Category[];
   locale: Locale;
+  currency: string;
   labels: Labels;
   onAdd: (formData: FormData) => Promise<void>;
   onRename: (formData: FormData) => Promise<void>;
@@ -34,6 +38,7 @@ type Props = {
 export function CategoriesCard({
   categories,
   locale,
+  currency,
   labels,
   onAdd,
   onRename,
@@ -46,6 +51,7 @@ export function CategoriesCard({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
+  const [editBudget, setEditBudget] = useState("");
 
   function add() {
     if (!newLabel.trim() || !newEmoji.trim()) return;
@@ -65,6 +71,7 @@ export function CategoriesCard({
     fd.set("id", id);
     fd.set("emoji", editEmoji.trim());
     fd.set("label", editLabel.trim());
+    fd.set("budget", editBudget.trim());
     startTransition(async () => {
       await onRename(fd);
       setEditingId(null);
@@ -136,7 +143,7 @@ export function CategoriesCard({
               return (
                 <li
                   key={c.id}
-                  className="flex items-center gap-2 py-2 text-sm"
+                  className="flex flex-wrap items-center gap-2 py-2 text-sm"
                 >
                   {isEditing ? (
                     <>
@@ -151,7 +158,16 @@ export function CategoriesCard({
                         type="text"
                         value={editLabel}
                         onChange={(e) => setEditLabel(e.target.value)}
-                        className="flex-1 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-sm outline-none"
+                        className="min-w-0 flex-1 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-sm outline-none"
+                      />
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={editBudget}
+                        onChange={(e) => setEditBudget(e.target.value)}
+                        placeholder={labels.budgetPlaceholder}
+                        aria-label={labels.budget}
+                        className="w-24 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-1 text-sm outline-none"
                       />
                       <button
                         type="button"
@@ -174,12 +190,18 @@ export function CategoriesCard({
                     <>
                       <span className="w-8 text-center text-base">{c.emoji}</span>
                       <span className="flex-1 truncate">{categoryLabel(c.label, locale)}</span>
+                      {c.budget != null && (
+                        <span className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
+                          {formatAmount(c.budget, locale, currency)}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
                           setEditingId(c.id);
                           setEditEmoji(c.emoji);
                           setEditLabel(categoryLabel(c.label, locale));
+                          setEditBudget(c.budget != null ? String(c.budget / 100) : "");
                         }}
                         disabled={isPending}
                         className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"

@@ -11,7 +11,13 @@ import {
   userSettingsTag,
   userTxnTag,
   userCategoriesTag,
+  userRecurringTag,
 } from "@/lib/cache-tags";
+import {
+  firstRunAt,
+  monthDueDate,
+  getRecurringRules,
+} from "@/lib/recurring";
 
 function getUserMeta(userId: string) {
   const fn = unstable_cache(
@@ -31,6 +37,7 @@ import { currencySymbol, parseAmount } from "@/lib/format";
 import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
+import { RecurringCard } from "./recurring-card";
 import { ThemeToggle } from "../theme-toggle";
 import { InboxBell } from "../inbox-bell";
 import { MobileMenu } from "../mobile-menu";
@@ -50,11 +57,12 @@ const MONTHS_BG = [
 
 export default async function SettingsPage() {
   const userId = await requireUserId();
-  const [settings, categories, user, pendingCount] = await Promise.all([
+  const [settings, categories, user, pendingCount, recurringRules] = await Promise.all([
     getSettings(userId),
     getAllCategories(userId),
     getUserMeta(userId),
     getPendingCount(userId),
+    getRecurringRules(userId),
   ]);
   const cycle = getCycleBounds(settings);
   const locale = settings.locale;
@@ -195,14 +203,21 @@ export default async function SettingsPage() {
       log("action.settings.renameCategory", 400, "missing_input", "id, emoji, or label missing");
       return;
     }
+    const budgetRaw = String(formData.get("budget") ?? "").trim();
+    let budget: number | null = null;
+    if (budgetRaw) {
+      const parsed = parseAmount(budgetRaw);
+      if (Number.isFinite(parsed) && parsed > 0) budget = Math.round(parsed * 100);
+    }
     const result = await prisma.category.updateMany({
       where: { id, userId: uid },
-      data: { emoji, label },
+      data: { emoji, label, budget },
     });
     log("action.settings.renameCategory", result.count ? 200 : 404, result.count ? "renamed" : "not_owned", `${id} -> ${emoji} ${label}`, {
       id,
       emoji,
       label,
+      budget,
       userId: uid,
       count: result.count,
     });
@@ -235,6 +250,133 @@ export default async function SettingsPage() {
     });
     log("action.settings.restoreCategory", 200, "restored", id, { id, userId: uid });
     updateTag(userCategoriesTag(uid));
+  }
+
+  async function addRecurring(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const input = await parseRecurringInput(uid, formData);
+    if (!input) {
+      log("action.settings.addRecurring", 400, "invalid_input", "merchant or amount missing", { userId: uid });
+      return;
+    }
+    const settingsRow = await getSettings(uid);
+    const row = await prisma.recurringRule.create({
+      data: {
+        userId: uid,
+        ...input,
+        currency: settingsRow.currency,
+        nextRunAt: firstRunAt(input.dayOfMonth),
+      },
+    });
+    log("action.settings.addRecurring", 201, "created", `rule ${row.id}`, {
+      id: row.id,
+      merchant: row.merchant,
+      amount: row.amount,
+      dayOfMonth: row.dayOfMonth,
+      userId: uid,
+    });
+    updateTag(userRecurringTag(uid));
+  }
+
+  async function updateRecurring(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const id = String(formData.get("id") ?? "");
+    const input = id ? await parseRecurringInput(uid, formData) : null;
+    if (!input) {
+      log("action.settings.updateRecurring", 400, "invalid_input", "id, merchant, or amount missing", { id, userId: uid });
+      return;
+    }
+    const existing = await prisma.recurringRule.findFirst({
+      where: { id, userId: uid },
+    });
+    if (!existing) {
+      log("action.settings.updateRecurring", 404, "not_owned", id, { id, userId: uid });
+      return;
+    }
+    // Keep the cursor unless the due day changed. On a day change, re-anchor
+    // within the cycle the cursor already points at, so the current month is
+    // neither charged twice nor skipped.
+    let nextRunAt = existing.nextRunAt;
+    if (input.dayOfMonth !== existing.dayOfMonth) {
+      nextRunAt =
+        existing.nextRunAt <= new Date()
+          ? firstRunAt(input.dayOfMonth)
+          : monthDueDate(
+              existing.nextRunAt.getFullYear(),
+              existing.nextRunAt.getMonth(),
+              input.dayOfMonth,
+            );
+    }
+    await prisma.recurringRule.update({
+      where: { id: existing.id },
+      data: { ...input, nextRunAt },
+    });
+    log("action.settings.updateRecurring", 200, "updated", `rule ${id}`, {
+      id,
+      merchant: input.merchant,
+      amount: input.amount,
+      dayOfMonth: input.dayOfMonth,
+      userId: uid,
+    });
+    updateTag(userRecurringTag(uid));
+  }
+
+  async function toggleRecurring(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    const existing = await prisma.recurringRule.findFirst({
+      where: { id, userId: uid },
+    });
+    if (!existing) {
+      log("action.settings.toggleRecurring", 404, "not_owned", id, { id, userId: uid });
+      return;
+    }
+    if (existing.active) {
+      await prisma.recurringRule.update({
+        where: { id: existing.id },
+        data: { active: false },
+      });
+    } else {
+      // Resume from now — months missed while paused are not backfilled, and a
+      // rule that already ran this cycle keeps its future cursor.
+      const recomputed = firstRunAt(existing.dayOfMonth);
+      await prisma.recurringRule.update({
+        where: { id: existing.id },
+        data: {
+          active: true,
+          nextRunAt: recomputed > existing.nextRunAt ? recomputed : existing.nextRunAt,
+        },
+      });
+    }
+    log("action.settings.toggleRecurring", 200, existing.active ? "paused" : "resumed", id, {
+      id,
+      userId: uid,
+    });
+    updateTag(userRecurringTag(uid));
+  }
+
+  async function deleteRecurring(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    const result = await prisma.recurringRule.deleteMany({
+      where: { id, userId: uid },
+    });
+    log("action.settings.deleteRecurring", result.count ? 200 : 404, result.count ? "deleted" : "not_owned", id, {
+      id,
+      userId: uid,
+      count: result.count,
+    });
+    updateTag(userRecurringTag(uid));
   }
 
   return (
@@ -374,9 +516,12 @@ export default async function SettingsPage() {
             <CategoriesCard
               categories={categories}
               locale={locale}
+              currency={settings.currency}
               labels={{
                 emoji: t(locale, "emoji"),
                 label: t(locale, "label"),
+                budget: t(locale, "budget"),
+                budgetPlaceholder: t(locale, "budgetPlaceholder"),
                 emojiPlaceholder: t(locale, "emojiPlaceholder"),
                 labelPlaceholder: t(locale, "labelPlaceholder"),
                 addCategory: t(locale, "addCategory"),
@@ -394,6 +539,56 @@ export default async function SettingsPage() {
               onRename={renameCategory}
               onArchive={archiveCategory}
               onRestore={restoreCategory}
+            />
+          </div>
+        </details>
+
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+                {t(locale, "recurring")}
+              </div>
+              <div className="mt-0.5 text-[color:var(--muted)]">
+                {recurringRules.filter((r) => r.active).length} {t(locale, "activeCategories").toLowerCase()}
+              </div>
+            </div>
+            <span
+              aria-hidden
+              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+            >
+              {"›"}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+            <p className="text-sm text-[color:var(--muted)]">
+              {t(locale, "recurringDescribe")}
+            </p>
+            <RecurringCard
+              rules={recurringRules}
+              categories={categories.filter((c) => !c.archived)}
+              locale={locale}
+              labels={{
+                merchantPlaceholder: t(locale, "merchantPlaceholder"),
+                amountPlaceholder: t(locale, "amountPlaceholder"),
+                notePlaceholder: t(locale, "notePlaceholder"),
+                dayOfMonth: t(locale, "dayOfMonth"),
+                dayN: t(locale, "dayN"),
+                categoryNone: t(locale, "categoryNone"),
+                addRecurring: t(locale, "addRecurring"),
+                pause: t(locale, "pause"),
+                resume: t(locale, "resume"),
+                paused: t(locale, "paused"),
+                edit: t(locale, "edit"),
+                delete: t(locale, "delete"),
+                save: t(locale, "save"),
+                cancel: t(locale, "cancel"),
+                noRecurring: t(locale, "noRecurring"),
+              }}
+              onAdd={addRecurring}
+              onUpdate={updateRecurring}
+              onToggle={toggleRecurring}
+              onDelete={deleteRecurring}
             />
           </div>
         </details>
@@ -448,4 +643,34 @@ export default async function SettingsPage() {
 function clamp(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   return Math.max(min, Math.min(max, n));
+}
+
+// Shared validation for the add/update recurring actions. Returns null when
+// merchant or amount is unusable; an unknown/foreign category id becomes null.
+async function parseRecurringInput(uid: string, formData: FormData) {
+  const merchant = String(formData.get("merchant") ?? "").trim();
+  const amountRaw = parseAmount(formData.get("amount"));
+  const dayOfMonth = clamp(
+    parseInt(String(formData.get("dayOfMonth") ?? "1"), 10),
+    1,
+    31,
+  );
+  const note = String(formData.get("note") ?? "").trim();
+  if (!merchant || !Number.isFinite(amountRaw) || amountRaw <= 0) return null;
+  const categoryRaw = String(formData.get("category") ?? "").trim();
+  let category: string | null = null;
+  if (categoryRaw) {
+    const cat = await prisma.category.findFirst({
+      where: { id: categoryRaw, userId: uid },
+      select: { id: true },
+    });
+    category = cat?.id ?? null;
+  }
+  return {
+    merchant,
+    amount: Math.round(amountRaw * 100),
+    dayOfMonth,
+    category,
+    note: note || null,
+  };
 }

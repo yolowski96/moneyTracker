@@ -26,6 +26,20 @@ export function formatAmount(
   }).format(cents / 100);
 }
 
+// Whole-unit variant (no decimals) for dense rows like "spent / budget".
+export function formatAmountWhole(
+  cents: number,
+  locale: Locale = "en",
+  currency: Currency | string = "EUR",
+): string {
+  return new Intl.NumberFormat(bcp47(locale), {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
 export function formatDateLong(d: Date, locale: Locale): string {
   return d.toLocaleDateString(bcp47(locale), {
     weekday: "short",

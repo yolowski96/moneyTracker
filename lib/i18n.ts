@@ -158,6 +158,21 @@ const STRINGS = {
     noArchived: "No archived categories.",
     cycleDescribe: "How often your budget resets and what you bring in per period.",
 
+    // Budgets
+    budget: "Budget",
+    budgetPlaceholder: "No budget",
+
+    // Recurring
+    recurring: "Recurring",
+    recurringDescribe: "Monthly costs added automatically on their day — rent, subscriptions.",
+    addRecurring: "Add recurring",
+    dayOfMonth: "Day of month",
+    dayN: "day {n}",
+    pause: "Pause",
+    resume: "Resume",
+    paused: "Paused",
+    noRecurring: "No recurring transactions yet.",
+
     // Edit pages
     editTransaction: "Edit transaction",
     editIncome: "Edit extra income",
@@ -320,6 +335,21 @@ const STRINGS = {
     manageCategories: "Управление на категории",
     noArchived: "Няма архивирани категории.",
     cycleDescribe: "Колко често се нулира бюджетът и какъв е доходът ти на период.",
+
+    // Budgets
+    budget: "Бюджет",
+    budgetPlaceholder: "Без бюджет",
+
+    // Recurring
+    recurring: "Повтарящи се",
+    recurringDescribe: "Месечни разходи, добавяни автоматично в избрания ден — наем, абонаменти.",
+    addRecurring: "Добави повтарящ се",
+    dayOfMonth: "Ден от месеца",
+    dayN: "ден {n}",
+    pause: "Пауза",
+    resume: "Възобнови",
+    paused: "На пауза",
+    noRecurring: "Все още няма повтарящи се транзакции.",
 
     // Edit pages
     editTransaction: "Редактирай транзакция",

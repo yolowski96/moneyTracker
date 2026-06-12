@@ -7,6 +7,7 @@ export type Category = {
   id: string;
   label: string;
   emoji: string;
+  budget: number | null; // cents per cycle, null = no budget
   position: number;
   archived: boolean;
 };
@@ -22,11 +23,12 @@ async function getAllForUser(userId: string): Promise<Category[]> {
         id: r.id,
         label: r.label,
         emoji: r.emoji,
+        budget: r.budget,
         position: r.position,
         archived: r.archived,
       }));
     },
-    ["categories:all:v2", userId],
+    ["categories:all:v3", userId],
     { tags: [userCategoriesTag(userId)] },
   );
   return fn(userId);

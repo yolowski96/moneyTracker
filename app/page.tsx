@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { formatAmount, formatDateShort, parseAmount } from "@/lib/format";
+import { formatAmount, formatAmountWhole, formatDateShort, parseAmount } from "@/lib/format";
 import { getSettings, getCycleBounds } from "@/lib/cycle";
 import { getActiveCategories, getCategory } from "@/lib/categories";
 import { t, categoryLabel } from "@/lib/i18n";
@@ -10,6 +10,7 @@ import { AddIncomeForm } from "./add-income-form";
 import { ThemeToggle } from "./theme-toggle";
 import { InboxBell } from "./inbox-bell";
 import { MobileMenu } from "./mobile-menu";
+import { RecurringTrigger } from "./recurring-trigger";
 import { updateTag } from "next/cache";
 import { userTxnTag, userIncomeTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
@@ -95,9 +96,20 @@ export default async function Home({
   for (const tx of cycleTransactions) {
     byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + tx.amount);
   }
+  // Budgeted categories are always listed (even with no spend this cycle);
+  // unbudgeted top spenders fill the remaining slots.
+  const budgetRows = categories
+    .flatMap((c) =>
+      c.budget != null
+        ? [{ cat: c, budget: c.budget, total: byCategory.get(c.id) ?? 0 }]
+        : [],
+    )
+    .sort((a, b) => b.total - a.total);
+  const budgetedIds = new Set(budgetRows.map((b) => b.cat.id));
   const categoryRows = [...byCategory.entries()]
+    .filter(([catId]) => !catId || !budgetedIds.has(catId))
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 6);
+    .slice(0, Math.max(0, 6 - budgetRows.length));
 
   const grouped = groupByDay(recentTransactions);
   const totalPages = Math.max(1, Math.ceil(grouped.length / DAYS_PER_PAGE));
@@ -175,6 +187,15 @@ export default async function Home({
     updateTag(userTxnTag(uid));
   }
 
+  async function runRecurring() {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const { materializeDueRules } = await import("@/lib/recurring");
+    const inserted = await materializeDueRules(uid);
+    if (inserted > 0) updateTag(userTxnTag(uid));
+  }
+
   async function addIncomeEvent(formData: FormData) {
     "use server";
     const { requireUserId } = await import("@/lib/session");
@@ -228,6 +249,7 @@ export default async function Home({
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
+      <RecurringTrigger action={runRecurring} />
       <header className="mb-10 sm:mb-12">
         <div className="flex items-center justify-between gap-3 sm:hidden">
           <MobileMenu
@@ -447,8 +469,39 @@ export default async function Home({
           />
         </div>
 
-        {categoryRows.length > 0 && (
+        {(budgetRows.length > 0 || categoryRows.length > 0) && (
           <ul className="mt-5 space-y-1.5 border-t border-[color:var(--border)] pt-4">
+            {budgetRows.map(({ cat, budget, total }) => {
+              const pct = Math.min(100, Math.round((total / budget) * 100));
+              const over = total > budget;
+              return (
+                <li key={cat.id} className="flex items-center gap-3 text-sm">
+                  <span className="w-24 shrink-0 truncate">
+                    {cat.emoji} {categoryLabel(cat.label, locale)}
+                  </span>
+                  <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
+                    <div
+                      className={
+                        "h-full " +
+                        (over
+                          ? "bg-red-500"
+                          : pct > 80
+                            ? "bg-amber-500"
+                            : "bg-[color:var(--foreground)]/70")
+                      }
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-28 shrink-0 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
+                    <span className={over ? "text-red-500" : ""}>
+                      {formatAmountWhole(total, locale, userCurrency)}
+                    </span>
+                    {" / "}
+                    {formatAmountWhole(budget, locale, userCurrency)}
+                  </span>
+                </li>
+              );
+            })}
             {categoryRows.map(([catId, total]) => {
               const cat = catId ? categoryById.get(catId) ?? null : null;
               const pct = cycleTotal
@@ -465,7 +518,7 @@ export default async function Home({
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="w-20 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
+                  <span className="w-28 shrink-0 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
                     {formatAmount(total, locale, userCurrency)}
                   </span>
                 </li>
