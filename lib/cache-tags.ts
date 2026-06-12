@@ -27,3 +27,7 @@ export function userCategoriesTag(userId: string): string {
 export function userRecurringTag(userId: string): string {
   return `recurring:${userId}`;
 }
+
+export function userGoalsTag(userId: string): string {
+  return `goals:${userId}`;
+}

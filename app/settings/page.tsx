@@ -391,6 +391,7 @@ export default async function SettingsPage() {
             items={[
               { href: "/", label: t(locale, "appName") },
               { href: "/charts", label: t(locale, "charts") },
+              { href: "/goals", label: t(locale, "goals") },
             ]}
           />
           <div className="min-w-0 flex-1 text-center text-base font-semibold tracking-tight">
@@ -422,6 +423,13 @@ export default async function SettingsPage() {
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
               {t(locale, "charts")}
+            </Link>
+            <Link
+              href="/goals"
+              prefetch={false}
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "goals")}
             </Link>
             <Link
               href="/"

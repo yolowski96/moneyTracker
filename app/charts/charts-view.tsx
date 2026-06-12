@@ -231,6 +231,7 @@ export async function ChartsView({
             signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/", label: t(locale, "appName") },
+              { href: "/goals", label: t(locale, "goals") },
               { href: "/settings", label: t(locale, "settings") },
             ]}
           />
@@ -254,6 +255,13 @@ export async function ChartsView({
             </p>
           </div>
           <nav className="hidden flex-wrap items-center justify-end gap-3 sm:flex">
+            <Link
+              href="/goals"
+              prefetch={false}
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "goals")}
+            </Link>
             <Link
               href="/settings"
               prefetch={false}

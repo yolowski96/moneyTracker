@@ -259,6 +259,7 @@ export default async function Home({
             signOutLabel={t(locale, "signOut")}
             items={[
               { href: "/charts", label: t(locale, "charts") },
+              { href: "/goals", label: t(locale, "goals") },
               { href: "/settings", label: t(locale, "settings") },
             ]}
           />
@@ -286,6 +287,13 @@ export default async function Home({
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
               {t(locale, "charts")}
+            </Link>
+            <Link
+              href="/goals"
+              prefetch={false}
+              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+            >
+              {t(locale, "goals")}
             </Link>
             <Link
               href="/settings"

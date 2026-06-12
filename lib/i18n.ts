@@ -174,6 +174,26 @@ const STRINGS = {
     paused: "Paused",
     noRecurring: "No recurring transactions yet.",
 
+    // Goals
+    goals: "Goals",
+    goalsTagline: "Track progress toward a savings goal.",
+    newGoal: "New goal",
+    goalNamePlaceholder: "e.g. Vacation",
+    targetAmount: "Target amount",
+    createGoal: "Create goal",
+    noGoalHint:
+      "Set a target and the app tracks income minus spending toward it automatically, cycle by cycle.",
+    savedLabel: "Saved",
+    sinceStart: "since {date}",
+    etaAtPace: "At this pace: ~{when}",
+    etaUnknown: "Not enough history for a projection yet.",
+    goalAchieved: "Goal achieved!",
+    startNewGoal: "Start a new goal",
+    archivedGoals: "Past goals",
+    achievedBadge: "Achieved",
+    abandonedBadge: "Abandoned",
+    noArchivedGoals: "No past goals yet.",
+
     // Edit pages
     editTransaction: "Edit transaction",
     editIncome: "Edit extra income",
@@ -352,6 +372,26 @@ const STRINGS = {
     resume: "Възобнови",
     paused: "На пауза",
     noRecurring: "Все още няма повтарящи се транзакции.",
+
+    // Goals
+    goals: "Цели",
+    goalsTagline: "Следи прогреса към цел за спестяване.",
+    newGoal: "Нова цел",
+    goalNamePlaceholder: "напр. Почивка",
+    targetAmount: "Целева сума",
+    createGoal: "Създай цел",
+    noGoalHint:
+      "Задай сума — приложението автоматично брои доход минус разходи към нея, период след период.",
+    savedLabel: "Спестено",
+    sinceStart: "от {date}",
+    etaAtPace: "При това темпо: ~{when}",
+    etaUnknown: "Още няма достатъчно история за прогноза.",
+    goalAchieved: "Целта е постигната!",
+    startNewGoal: "Започни нова цел",
+    archivedGoals: "Минали цели",
+    achievedBadge: "Постигната",
+    abandonedBadge: "Изоставена",
+    noArchivedGoals: "Все още няма минали цели.",
 
     // Edit pages
     editTransaction: "Редактирай транзакция",
