@@ -460,9 +460,6 @@ export async function ChartsView({
           <ul className="divide-y divide-[color:var(--border)]">
             {historyRows.map((m) => {
               const isSelected = m.key === selectedKey;
-              const vsAvg = avgPastSpend > 0
-                ? Math.round(((m.spend - avgPastSpend) / avgPastSpend) * 100)
-                : 0;
               const net = m.income - m.spend;
               return (
                 <li key={m.key}>
@@ -493,17 +490,6 @@ export async function ChartsView({
                       <span className="hidden text-xs text-[color:var(--muted)] sm:inline">
                         {m.count} {t(locale, "txns")}
                       </span>
-                      {historyRows.length > 1 && avgPastSpend > 0 && m.spend > 0 && vsAvg !== 0 && (
-                        <span
-                          className={
-                            "w-12 text-right font-mono text-xs tabular-nums " +
-                            (vsAvg > 0 ? "text-red-500" : "text-emerald-500")
-                          }
-                        >
-                          {vsAvg > 0 ? "+" : ""}
-                          {vsAvg}%
-                        </span>
-                      )}
                       <span
                         className={
                           "w-20 text-right font-mono tabular-nums " +

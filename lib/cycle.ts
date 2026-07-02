@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: Omit<Settings, "id" | "userId"> = {
   incomeAmount: 0,
   locale: "en",
   currency: "EUR",
+  portfolioApiUrl: null,
 };
 
 export type Settings = {
@@ -28,6 +29,7 @@ export type Settings = {
   incomeAmount: number; // cents
   locale: Locale;
   currency: Currency | string;
+  portfolioApiUrl: string | null;
 };
 
 export type CycleBounds = {
@@ -95,9 +97,10 @@ async function getSettingsForUser(userId: string): Promise<Settings> {
         incomeAmount: row.incomeAmount,
         locale: (row.locale as Locale) ?? "en",
         currency: row.currency ?? "EUR",
+        portfolioApiUrl: row.portfolioApiUrl ?? null,
       };
     },
-    ["settings:v2", userId],
+    ["settings:v3", userId],
     { tags: [userSettingsTag(userId)] },
   );
   return fn(userId);

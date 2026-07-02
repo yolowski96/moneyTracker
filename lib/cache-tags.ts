@@ -31,3 +31,11 @@ export function userRecurringTag(userId: string): string {
 export function userGoalsTag(userId: string): string {
   return `goals:${userId}`;
 }
+
+export function userSavingsTag(userId: string): string {
+  return `savings:${userId}`;
+}
+
+export function userNetWorthTag(userId: string): string {
+  return `net-worth:${userId}`;
+}

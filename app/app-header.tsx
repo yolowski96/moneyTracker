@@ -6,11 +6,18 @@ import { InboxBell } from "./inbox-bell";
 import { ThemeToggle } from "./theme-toggle";
 import { LogoutIcon } from "./logout-icon";
 
-export type AppPage = "home" | "charts" | "goals" | "settings" | "inbox";
+export type AppPage =
+  | "home"
+  | "charts"
+  | "goals"
+  | "portfolio"
+  | "settings"
+  | "inbox";
 
 const NAV = [
   { page: "charts" as const, href: "/charts" },
   { page: "goals" as const, href: "/goals" },
+  { page: "portfolio" as const, href: "/portfolio" },
   { page: "settings" as const, href: "/settings" },
 ];
 

@@ -17,12 +17,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  transactions   Transaction[]
-  incomeEvents   IncomeEvent[]
-  categories     Category[]
-  settings       Settings?
-  recurringRules RecurringRule[]
-  goals          Goal[]
+  transactions      Transaction[]
+  incomeEvents      IncomeEvent[]
+  categories        Category[]
+  settings          Settings?
+  recurringRules    RecurringRule[]
+  goals             Goal[]
+  savingsAccounts   SavingsAccount[]
+  netWorthSnapshots NetWorthSnapshot[]
 }
 
 model Transaction {
@@ -67,6 +69,7 @@ model Settings {
   incomeAmount     Int      @default(0)        // cents, per period
   locale           String   @default("en")     // en | bg
   currency         String   @default("EUR")    // EUR | USD | GBP
+  portfolioApiUrl  String?                     // external positions API; Bearer = User.apiToken
   updatedAt        DateTime @updatedAt
 }
 
@@ -98,6 +101,52 @@ model Goal {
   updatedAt    DateTime  @updatedAt
 
   @@index([userId, archived])
+}
+
+model SavingsAccount {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  emoji     String   @default("💰")
+  kind      String   @default("manual") // "cash" (auto-surplus target) | "manual"
+  balance   Int      @default(0)        // cents
+  position  Int      @default(0)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries SavingsEntry[]
+
+  @@index([userId, archived, position])
+}
+
+model SavingsEntry {
+  id         String         @id @default(cuid())
+  userId     String
+  accountId  String
+  account    SavingsAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount     Int      // cents delta (+/-)
+  kind       String   // "auto_surplus"
+  cycleStart DateTime? // set for auto_surplus -> one post per cycle
+  note       String?
+  occurredAt DateTime @default(now())
+
+  @@unique([accountId, cycleStart])
+  @@index([userId, occurredAt])
+}
+
+model NetWorthSnapshot {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycleStart  DateTime
+  investments Int      // cents at capture
+  cash        Int      // cents, all savings accounts at capture
+  total       Int      // cents
+  capturedAt  DateTime @default(now())
+
+  @@unique([userId, cycleStart])
 }
 
 model RecurringRule {

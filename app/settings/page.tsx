@@ -31,6 +31,7 @@ function getUserMeta(userId: string) {
   return fn(userId);
 }
 import { log } from "@/lib/log";
+import { portfolioEnvUrl } from "@/lib/portfolio";
 import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
 import { currencySymbol, parseAmount } from "@/lib/format";
 import { SettingsForm } from "./form";
@@ -154,6 +155,31 @@ export default async function SettingsPage() {
       userId: uid,
       hadPrevious: !!previous?.apiToken,
       tokenPreview: token.slice(0, 4) + "…" + token.slice(-4),
+    });
+    updateTag(userSettingsTag(uid));
+  }
+
+  async function savePortfolioApiUrl(formData: FormData) {
+    "use server";
+    const { requireUserId } = await import("@/lib/session");
+    const uid = await requireUserId();
+    const raw = String(formData.get("portfolioApiUrl") ?? "").trim();
+    // Empty clears the URL; otherwise require an absolute http(s) endpoint.
+    const url = raw === "" ? null : raw;
+    if (url !== null && !/^https?:\/\/.+/i.test(url)) {
+      log("action.settings.portfolioApiUrl", 400, "invalid_url", "not an http(s) URL", {
+        userId: uid,
+      });
+      return;
+    }
+    await prisma.settings.upsert({
+      where: { userId: uid },
+      update: { portfolioApiUrl: url },
+      create: { userId: uid, portfolioApiUrl: url },
+    });
+    log("action.settings.portfolioApiUrl", 200, url ? "saved" : "cleared", "portfolio api url updated", {
+      userId: uid,
+      hasUrl: !!url,
     });
     updateTag(userSettingsTag(uid));
   }
@@ -584,6 +610,47 @@ export default async function SettingsPage() {
               }}
               action={regenerateApiToken}
             />
+          </div>
+        </details>
+
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+                {t(locale, "portfolioApiTitle")}
+              </div>
+              <div className="mt-0.5 text-[color:var(--muted)]">
+                {settings.portfolioApiUrl || portfolioEnvUrl()
+                  ? t(locale, "urlConfigured")
+                  : t(locale, "noUrlYet")}
+              </div>
+            </div>
+            <span
+              aria-hidden
+              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+            >
+              {"›"}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+            <p className="text-sm text-[color:var(--muted)]">
+              {t(locale, "portfolioApiHint")}
+            </p>
+            <form action={savePortfolioApiUrl} className="flex gap-2">
+              <input
+                type="url"
+                name="portfolioApiUrl"
+                defaultValue={settings.portfolioApiUrl ?? ""}
+                placeholder={t(locale, "portfolioApiUrlPlaceholder")}
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 font-mono text-xs text-[color:var(--foreground)] outline-none focus:border-[color:var(--foreground)]/30"
+              />
+              <button
+                type="submit"
+                className="shrink-0 rounded-md bg-[color:var(--foreground)] px-3 py-2 text-xs font-medium text-[color:var(--background)]"
+              >
+                {t(locale, "save")}
+              </button>
+            </form>
           </div>
         </details>
       </div>
