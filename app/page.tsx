@@ -89,7 +89,7 @@ export default async function Home({
         }}
       />
 
-      <div className="mt-3.5 grid items-stretch gap-3.5 lg:grid-cols-2">
+      <div className="mt-3.5 grid grid-cols-1 items-stretch gap-3.5 lg:grid-cols-2">
         <CategorySpending
           locale={locale}
           currency={userCurrency}

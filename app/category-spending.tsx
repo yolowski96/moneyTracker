@@ -57,7 +57,7 @@ export function CategorySpending({
           const pct = Math.min(100, Math.round((total / budget) * 100));
           const overBudget = total > budget;
           return (
-            <li key={cat.id} className="flex items-center gap-4">
+            <li key={cat.id} className="flex items-center gap-3 sm:gap-4">
               <span
                 aria-hidden
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[color:var(--chip)] text-lg"
@@ -82,10 +82,10 @@ export function CategorySpending({
                   />
                 </div>
               </div>
-              <span className="w-10 shrink-0 text-right text-xs text-[color:var(--muted)]">
+              <span className="hidden w-10 shrink-0 text-right text-xs text-[color:var(--muted)] sm:block">
                 {pct}%
               </span>
-              <span className="w-28 shrink-0 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
+              <span className="shrink-0 text-right font-mono text-xs tabular-nums text-[color:var(--muted)] sm:w-28">
                 <span
                   className={overBudget ? "text-[color:var(--danger)]" : ""}
                 >
@@ -101,7 +101,7 @@ export function CategorySpending({
           const cat = catId ? categoryById.get(catId) ?? null : null;
           const pct = cycleTotal ? Math.round((total / cycleTotal) * 100) : 0;
           return (
-            <li key={catId ?? "uncat"} className="flex items-center gap-4">
+            <li key={catId ?? "uncat"} className="flex items-center gap-3 sm:gap-4">
               <span
                 aria-hidden
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[color:var(--chip)] text-lg"
@@ -119,10 +119,10 @@ export function CategorySpending({
                   />
                 </div>
               </div>
-              <span className="w-10 shrink-0 text-right text-xs text-[color:var(--muted)]">
+              <span className="hidden w-10 shrink-0 text-right text-xs text-[color:var(--muted)] sm:block">
                 {pct}%
               </span>
-              <span className="w-28 shrink-0 text-right font-mono text-[15px] tabular-nums">
+              <span className="shrink-0 text-right font-mono text-[15px] tabular-nums sm:w-28">
                 {formatAmount(total, locale, currency)}
               </span>
             </li>

@@ -407,19 +407,19 @@ export async function ChartsView({
                     <span className="w-8 shrink-0 text-lg" aria-hidden>
                       {cat?.emoji ?? "—"}
                     </span>
-                    <span className="w-32 shrink-0 truncate text-[15px] sm:w-48">
+                    <span className="min-w-0 flex-1 truncate text-[15px] sm:w-48 sm:flex-none">
                       {cat ? categoryLabel(cat.label, locale) : "—"}
                     </span>
-                    <div className="relative h-[7px] flex-1 overflow-hidden rounded-full bg-[color:var(--chip)]">
+                    <div className="relative hidden h-[7px] flex-1 overflow-hidden rounded-full bg-[color:var(--chip)] sm:block">
                       <div
                         className="h-full rounded-full bg-[color:var(--accent-bar)]"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="w-12 shrink-0 text-right text-xs tabular-nums text-[color:var(--muted)]">
+                    <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[color:var(--muted)] sm:w-12">
                       {pct}%
                     </span>
-                    <span className="w-28 shrink-0 text-right font-mono text-[13px] tabular-nums">
+                    <span className="w-24 shrink-0 text-right font-mono text-[13px] tabular-nums sm:w-28">
                       {formatAmount(total, locale, userCurrency)}
                     </span>
                   </>
