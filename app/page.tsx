@@ -12,6 +12,7 @@ import { addTransaction, runRecurring } from "./actions";
 import { AppHeader } from "./app-header";
 import { CycleSummary } from "./cycle-summary";
 import { AddTransactionForm } from "./add-form";
+import { CategorySpending } from "./category-spending";
 import { TransactionList } from "./transaction-list";
 import { RecurringTrigger } from "./recurring-trigger";
 
@@ -56,7 +57,7 @@ export default async function Home({
   const requestedPage = Number.parseInt(String(sp?.p ?? "1"), 10);
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
+    <main className="mx-auto w-full max-w-5xl px-6 py-16 sm:py-24">
       <RecurringTrigger action={runRecurring} />
       <AppHeader
         current="home"
@@ -75,8 +76,6 @@ export default async function Home({
         baseIncome={settings.incomeAmount}
         transactions={cycleTransactions}
         income={cycleIncome}
-        categories={categories}
-        categoryById={categoryById}
       />
 
       <AddTransactionForm
@@ -90,13 +89,22 @@ export default async function Home({
         }}
       />
 
-      <TransactionList
-        locale={locale}
-        currency={userCurrency}
-        transactions={recentTransactions}
-        requestedPage={requestedPage}
-        categoryById={categoryById}
-      />
+      <div className="mt-3.5 grid items-stretch gap-3.5 lg:grid-cols-2">
+        <CategorySpending
+          locale={locale}
+          currency={userCurrency}
+          transactions={cycleTransactions}
+          categories={categories}
+          categoryById={categoryById}
+        />
+        <TransactionList
+          locale={locale}
+          currency={userCurrency}
+          transactions={recentTransactions}
+          requestedPage={requestedPage}
+          categoryById={categoryById}
+        />
+      </div>
     </main>
   );
 }

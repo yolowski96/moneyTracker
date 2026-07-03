@@ -19,7 +19,7 @@ function Submit({ ariaLabel }: { ariaLabel: string }) {
       disabled={pending}
       aria-label={ariaLabel}
       title={ariaLabel}
-      className="flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] text-sm text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)] disabled:opacity-50"
+      className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[color:var(--border)] text-[13px] text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)] disabled:opacity-50"
     >
       <span>{pending ? "⏳" : "\u{1F6AA}"}</span>
     </button>

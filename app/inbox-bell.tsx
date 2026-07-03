@@ -13,7 +13,7 @@ export function InboxBell({
       prefetch={false}
       aria-label={count > 0 ? `${ariaLabel} (${count})` : ariaLabel}
       title={ariaLabel}
-      className="relative flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] text-sm text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)]"
+      className="relative flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[color:var(--border)] text-[13px] text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)]"
     >
       <span aria-hidden>{"\u{1F514}"}</span>
       {count > 0 && (

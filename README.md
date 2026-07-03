@@ -103,6 +103,14 @@ For third-party cards in Wallet, Apple doesn't expose a transaction trigger. Use
 
 If you want fully automatic sync, add a GoCardless Bank Account Data integration (free in the EU, covers ~2,400 banks under PSD2). Not included here — it's a separate piece of work.
 
+## Demo mode
+
+Set `DEMO_PASSWORD` (any long random string) and the login page grows a
+**Try the demo** button. Clicking it wipes and re-seeds a dedicated
+`demo@bankopolis.app` account with ~3 months of realistic data (dates are
+relative to today) and signs you in — nothing you show touches real data.
+Every click starts fresh. Leave the variable unset to hide the feature.
+
 ## Data model
 
 ```prisma

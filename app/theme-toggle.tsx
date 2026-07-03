@@ -29,7 +29,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label="Toggle theme"
       title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-      className="flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] text-sm text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)]"
+      className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[color:var(--border)] text-[13px] text-[color:var(--muted)] transition hover:bg-[color:var(--surface)] hover:text-[color:var(--foreground)]"
       suppressHydrationWarning
     >
       <span suppressHydrationWarning>

@@ -33,7 +33,7 @@ function getUserMeta(userId: string) {
 import { log } from "@/lib/log";
 import { portfolioEnvUrl } from "@/lib/portfolio";
 import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
-import { currencySymbol, parseAmount } from "@/lib/format";
+import { currencySymbol, parseAmount, formatAmountWhole } from "@/lib/format";
 import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
 import { CategoriesCard } from "./categories-card";
@@ -413,25 +413,36 @@ export default async function SettingsPage() {
         subtitle={user?.email ?? undefined}
       />
 
-      <div className="divide-y divide-[color:var(--border)] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
+      <div className="mb-2.5 text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
+        {t(locale, "budget")}
+      </div>
+      <div className="divide-y divide-[color:var(--border-soft,var(--border))] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)]">
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+          <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 text-sm">
+            <span
+              aria-hidden
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--accent-soft)] text-[15px]"
+            >
+              {"\u{1F4C5}"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
                 {t(locale, "cycleAndIncome")}
               </div>
-              <div className="mt-0.5 text-[color:var(--muted)]">
+              <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
                 {cycle.label}
+                {settings.incomeAmount > 0 &&
+                  ` \u00B7 ${formatAmountWhole(settings.incomeAmount, locale, settings.currency)} ${t(locale, "base")}`}
               </div>
             </div>
             <span
               aria-hidden
-              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+              className="text-[color:var(--muted-soft,var(--muted))] transition-transform group-open:rotate-90"
             >
               {"\u203A"}
             </span>
           </summary>
-          <div className="space-y-6 border-t border-[color:var(--border)] px-4 py-4">
+          <div className="space-y-6 border-t border-[color:var(--border-soft,var(--border))] px-5 py-4">
             <p className="text-sm text-[color:var(--muted)]">
               {t(locale, "cycleDescribe")}
             </p>
@@ -469,23 +480,29 @@ export default async function SettingsPage() {
         </details>
 
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+          <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 text-sm">
+            <span
+              aria-hidden
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--chip)] text-[15px]"
+            >
+              {"\u{1F3F7}\u{FE0F}"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
                 {t(locale, "categories")}
               </div>
-              <div className="mt-0.5 text-[color:var(--muted)]">
+              <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
                 {categories.filter((c) => !c.archived).length} {t(locale, "activeCategories").toLowerCase()}
               </div>
             </div>
             <span
               aria-hidden
-              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+              className="text-[color:var(--muted-soft,var(--muted))] transition-transform group-open:rotate-90"
             >
               {"\u203A"}
             </span>
           </summary>
-          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+          <div className="space-y-4 border-t border-[color:var(--border-soft,var(--border))] px-5 py-4">
             <p className="text-sm text-[color:var(--muted)]">
               {t(locale, "categoriesDescribe")}
             </p>
@@ -520,23 +537,29 @@ export default async function SettingsPage() {
         </details>
 
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+          <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 text-sm">
+            <span
+              aria-hidden
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--chip)] text-[15px]"
+            >
+              {"\u{1F501}"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
                 {t(locale, "recurring")}
               </div>
-              <div className="mt-0.5 text-[color:var(--muted)]">
+              <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
                 {recurringRules.filter((r) => r.active).length} {t(locale, "activeCategories").toLowerCase()}
               </div>
             </div>
             <span
               aria-hidden
-              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+              className="text-[color:var(--muted-soft,var(--muted))] transition-transform group-open:rotate-90"
             >
               {"›"}
             </span>
           </summary>
-          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+          <div className="space-y-4 border-t border-[color:var(--border-soft,var(--border))] px-5 py-4">
             <p className="text-sm text-[color:var(--muted)]">
               {t(locale, "recurringDescribe")}
             </p>
@@ -570,24 +593,45 @@ export default async function SettingsPage() {
           </div>
         </details>
 
+      </div>
+
+      <div className="mb-2.5 mt-7 text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
+        {t(locale, "integrations")}
+      </div>
+      <div className="divide-y divide-[color:var(--border-soft,var(--border))] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)]">
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-                {t(locale, "apiAccess")}
-              </div>
-              <div className="mt-0.5 text-[color:var(--muted)]">
-                {user?.apiToken ? t(locale, "keyConfigured") : t(locale, "noKeyYet")}
-              </div>
-            </div>
+          <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 text-sm">
             <span
               aria-hidden
-              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--chip)] text-[15px]"
+            >
+              {"\u{1F511}"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
+                {t(locale, "apiAccess")}
+              </div>
+              <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
+                {t(locale, "apiAccessSub")}
+              </div>
+            </div>
+            {user?.apiToken ? (
+              <span className="shrink-0 rounded-full bg-[color:var(--accent-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[color:var(--accent)]">
+                {t(locale, "configured")}
+              </span>
+            ) : (
+              <span className="shrink-0 rounded-full bg-[color:var(--chip)] px-2.5 py-0.5 text-[11px] text-[color:var(--muted)]">
+                {t(locale, "noKeyYet")}
+              </span>
+            )}
+            <span
+              aria-hidden
+              className="text-[color:var(--muted-soft,var(--muted))] transition-transform group-open:rotate-90"
             >
               {"\u203A"}
             </span>
           </summary>
-          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+          <div className="space-y-4 border-t border-[color:var(--border-soft,var(--border))] px-5 py-4">
             <p className="text-sm text-[color:var(--muted)]">
               {t(locale, "apiKeyDescribe")}{" "}
               <code className="font-mono text-xs">/api/transactions</code>.
@@ -614,25 +658,38 @@ export default async function SettingsPage() {
         </details>
 
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-                {t(locale, "portfolioApiTitle")}
-              </div>
-              <div className="mt-0.5 text-[color:var(--muted)]">
-                {settings.portfolioApiUrl || portfolioEnvUrl()
-                  ? t(locale, "urlConfigured")
-                  : t(locale, "noUrlYet")}
-              </div>
-            </div>
+          <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 text-sm">
             <span
               aria-hidden
-              className="text-[color:var(--muted)] transition-transform group-open:rotate-90"
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--chip)] text-[15px]"
+            >
+              {"\u{1F4C8}"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
+                {t(locale, "portfolioApiTitle")}
+              </div>
+              <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
+                {t(locale, "portfolioApiSub")}
+              </div>
+            </div>
+            {settings.portfolioApiUrl || portfolioEnvUrl() ? (
+              <span className="shrink-0 rounded-full bg-[color:var(--accent-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[color:var(--accent)]">
+                {t(locale, "configured")}
+              </span>
+            ) : (
+              <span className="shrink-0 rounded-full bg-[color:var(--chip)] px-2.5 py-0.5 text-[11px] text-[color:var(--muted)]">
+                {t(locale, "noUrlYet")}
+              </span>
+            )}
+            <span
+              aria-hidden
+              className="text-[color:var(--muted-soft,var(--muted))] transition-transform group-open:rotate-90"
             >
               {"›"}
             </span>
           </summary>
-          <div className="space-y-4 border-t border-[color:var(--border)] px-4 py-4">
+          <div className="space-y-4 border-t border-[color:var(--border-soft,var(--border))] px-5 py-4">
             <p className="text-sm text-[color:var(--muted)]">
               {t(locale, "portfolioApiHint")}
             </p>

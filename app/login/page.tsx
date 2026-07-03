@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import { log } from "@/lib/log";
+import { demoEnabled } from "@/lib/demo";
+import { enterDemo } from "./actions";
 import { LoginForm } from "./form";
+import { DemoButton } from "./demo-button";
 
 type PageProps = {
   searchParams: Promise<{ from?: string; error?: string }>;
@@ -48,6 +51,12 @@ export default async function LoginPage({ searchParams }: PageProps) {
       </header>
 
       <LoginForm action={login} redirectTo={redirectTo} error={error ?? null} />
+
+      {demoEnabled() && (
+        <form action={enterDemo} className="mt-4">
+          <DemoButton />
+        </form>
+      )}
 
       <p className="mt-6 text-center text-sm text-[color:var(--muted)]">
         Don&apos;t have an account?{" "}

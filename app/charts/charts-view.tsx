@@ -218,7 +218,7 @@ export async function ChartsView({
   });
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-16 sm:py-24">
+    <main className="mx-auto w-full max-w-5xl px-6 py-16 sm:py-24">
       <AppHeader
         current="charts"
         locale={locale}
@@ -236,7 +236,7 @@ export async function ChartsView({
 
       {/* Period-detail navigation */}
       {primary.mode === "period" && prevCycle && nextCycle && !filterCat && (
-        <nav className="mb-6 flex items-center justify-between rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm">
+        <nav className="mb-3.5 flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm">
           <Link
             href={`/charts/${cycleKey(prevCycle.start)}`}
             className="text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
@@ -266,7 +266,7 @@ export async function ChartsView({
 
       {/* Category-filter banner */}
       {filterCat && (
-        <nav className="mb-6 flex items-center justify-between rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm">
+        <nav className="mb-3.5 flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm">
           <span className="min-w-0 truncate font-medium">
             {filterCat.emoji} {categoryLabel(filterCat.label, locale)}
             {primary.mode === "period" && (
@@ -283,21 +283,19 @@ export async function ChartsView({
       )}
 
       {/* Daily spend — primary view */}
-      <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-        <div className="mb-4 flex items-baseline justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-              {t(locale, "dailySpend")}
-            </div>
-            <div className="mt-0.5 text-sm">{primary.title}</div>
+      <section className="mb-3.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 sm:px-7">
+        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+          <div className="text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
+            {t(locale, "dailySpend")} {"·"}{" "}
+            {primary.mode === "period" ? primary.title : t(locale, "thisCycle")}
           </div>
-          <div className="text-right">
-            <div className="font-mono text-sm tabular-nums">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-lg tabular-nums">
               {formatAmount(primaryTotal, locale, userCurrency)}
-            </div>
-            <div className="text-xs text-[color:var(--muted)]">
-              {t(locale, "avg")} {formatAmount(primaryAvgDay, locale, userCurrency)}{t(locale, "perDay")} {"·"} {viewTxns.length} {t(locale, "txns")}
-            </div>
+            </span>
+            <span className="text-xs text-[color:var(--muted)]">
+              {"·"} {t(locale, "avg")} {formatAmount(primaryAvgDay, locale, userCurrency)}{t(locale, "perDay")} {"·"} {viewTxns.length} {t(locale, "txns")}
+            </span>
           </div>
         </div>
 
@@ -308,7 +306,7 @@ export async function ChartsView({
               : t(locale, "noSpendingCycle")}
           </div>
         ) : (
-          <div className="flex h-40 items-end gap-[2px]">
+          <div className="flex h-48 items-end gap-[3px]">
             {primaryDays.map((d, i) => {
               const h = d.total === 0 ? 2 : (d.total / primaryMaxDaily) * 100;
               const isToday = d.date.toDateString() === new Date().toDateString();
@@ -321,12 +319,12 @@ export async function ChartsView({
                 >
                   <div
                     className={
-                      "absolute bottom-0 w-full rounded-sm transition " +
+                      "absolute bottom-0 w-full rounded-t transition " +
                       (d.total === 0
-                        ? "bg-[color:var(--border)]"
+                        ? "bg-[color:var(--chip)]"
                         : isToday && primary.mode === "cycle"
-                          ? "bg-[color:var(--foreground)]"
-                          : "bg-[color:var(--foreground)]/60 group-hover:bg-[color:var(--foreground)]")
+                          ? "bg-[color:var(--accent)]"
+                          : "bg-[color:var(--accent-bar)] group-hover:bg-[color:var(--accent)]")
                     }
                     style={{ height: `${h}%` }}
                   />
@@ -336,10 +334,15 @@ export async function ChartsView({
           </div>
         )}
 
-        <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
+        <div className="mt-2 flex justify-between text-[11px] text-[color:var(--muted)]">
           <span>
             {formatDateShort(primary.start, locale)}
           </span>
+          {primary.mode === "cycle" && (
+            <span className="font-semibold text-[color:var(--spend)]">
+              {t(locale, "todayLower")} {"·"} {formatDateShort(new Date(), locale)}
+            </span>
+          )}
           <span>
             {formatDateShort(new Date(primary.end.getTime() - 86_400_000), locale)}
           </span>
@@ -348,7 +351,7 @@ export async function ChartsView({
 
       {filterCat ? (
         /* Single-category transaction list */
-        <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
+        <section className="mb-3.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 sm:px-7">
           <div className="mb-4 flex items-baseline justify-between">
             <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
               {filterCat.emoji} {categoryLabel(filterCat.label, locale)}
@@ -384,8 +387,8 @@ export async function ChartsView({
         </section>
       ) : (
         /* Category breakdown */
-        <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-          <div className="mb-4 text-xs uppercase tracking-widest text-[color:var(--muted)]">
+        <section className="mb-3.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 sm:px-7">
+          <div className="mb-4 text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
             {t(locale, "byCategory")} {"·"} {primary.mode === "period" ? primary.title : t(locale, "thisCycle")}
           </div>
           {primaryCategories.length === 0 ? (
@@ -393,7 +396,7 @@ export async function ChartsView({
               {t(locale, "nothingToBreakDown")}
             </div>
           ) : (
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {primaryCategories.map(([catId, total]) => {
                 const cat = catId ? categoryById.get(catId) ?? null : null;
                 const pct = primaryTotal
@@ -401,19 +404,22 @@ export async function ChartsView({
                   : 0;
                 const row = (
                   <>
-                    <span className="w-32 shrink-0 truncate">
-                      {cat ? `${cat.emoji} ${categoryLabel(cat.label, locale)}` : "—"}
+                    <span className="w-8 shrink-0 text-lg" aria-hidden>
+                      {cat?.emoji ?? "—"}
                     </span>
-                    <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--border)]">
+                    <span className="w-32 shrink-0 truncate text-[15px] sm:w-48">
+                      {cat ? categoryLabel(cat.label, locale) : "—"}
+                    </span>
+                    <div className="relative h-[7px] flex-1 overflow-hidden rounded-full bg-[color:var(--chip)]">
                       <div
-                        className="h-full bg-[color:var(--foreground)]/70"
+                        className="h-full rounded-full bg-[color:var(--accent-bar)]"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="w-12 text-right font-mono text-xs tabular-nums text-[color:var(--muted)]">
+                    <span className="w-12 shrink-0 text-right text-xs tabular-nums text-[color:var(--muted)]">
                       {pct}%
                     </span>
-                    <span className="w-24 text-right font-mono text-xs tabular-nums">
+                    <span className="w-28 shrink-0 text-right font-mono text-[13px] tabular-nums">
                       {formatAmount(total, locale, userCurrency)}
                     </span>
                   </>
@@ -423,12 +429,12 @@ export async function ChartsView({
                     {catId ? (
                       <Link
                         href={`${basePath}?cat=${catId}`}
-                        className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-sm transition hover:bg-[color:var(--border)]/30"
+                        className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition hover:bg-[color:var(--border)]/30 sm:gap-4"
                       >
                         {row}
                       </Link>
                     ) : (
-                      <div className="flex items-center gap-3 px-2 py-1 text-sm">{row}</div>
+                      <div className="flex items-center gap-3 px-2 py-2 text-sm sm:gap-4">{row}</div>
                     )}
                   </li>
                 );
@@ -441,15 +447,11 @@ export async function ChartsView({
 
       {!filterCat && (
         <>
+      <div className="grid items-stretch gap-3.5 lg:grid-cols-2">
       {/* Per-period history list */}
-      <section className="mb-12 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-        <div className="mb-4 flex items-baseline justify-between">
-          <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            {t(locale, "history")} {"·"} {t(locale, "lastNPeriods", { n: PERIODS_OF_HISTORY })}
-          </div>
-          <div className="text-xs text-[color:var(--muted)]">
-            {t(locale, "avg")} {formatAmount(avgPastSpend, locale, userCurrency)}{t(locale, "perPeriod")}
-          </div>
+      <section className="flex flex-col rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 sm:px-7">
+        <div className="mb-4 text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
+          {t(locale, "history")} {"·"} {t(locale, "lastPeriods")}
         </div>
 
         {historyRows.length === 0 ? (
@@ -457,7 +459,7 @@ export async function ChartsView({
             {t(locale, "noPriorMonths")}
           </div>
         ) : (
-          <ul className="divide-y divide-[color:var(--border)]">
+          <ul className="flex-1 space-y-5">
             {historyRows.map((m) => {
               const isSelected = m.key === selectedKey;
               const net = m.income - m.spend;
@@ -467,41 +469,40 @@ export async function ChartsView({
                     href={`/charts/${m.key}`}
                     title={formatCycleRange(m.start, m.end, locale)}
                     className={
-                      "flex items-center justify-between gap-4 py-3 text-sm transition " +
+                      "block text-sm transition " +
                       (isSelected
                         ? "text-[color:var(--foreground)]"
                         : "hover:text-[color:var(--foreground)]")
                     }
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <span className="w-24 shrink-0">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="shrink-0 text-[15px]">
                         {formatMonthShortYear(cycleMidpoint(m.start, m.end), locale)}
                       </span>
-                      <div className="relative hidden h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--border)] sm:block">
-                        <div
-                          className="h-full bg-[color:var(--foreground)]/60"
-                          style={{
-                            width: `${Math.min(100, (m.spend / Math.max(1, maxPeriod)) * 100)}%`,
-                          }}
-                        />
+                      <div className="flex items-baseline gap-3">
+                        <span
+                          className={
+                            "font-mono text-xs tabular-nums " +
+                            (net < 0
+                              ? "text-[color:var(--danger)]"
+                              : "text-[color:var(--accent)]")
+                          }
+                        >
+                          {net >= 0 ? "+" : ""}
+                          {formatAmount(net, locale, userCurrency)}
+                        </span>
+                        <span className="font-mono text-[15px] tabular-nums">
+                          {formatAmount(m.spend, locale, userCurrency)}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="hidden text-xs text-[color:var(--muted)] sm:inline">
-                        {m.count} {t(locale, "txns")}
-                      </span>
-                      <span
-                        className={
-                          "w-20 text-right font-mono tabular-nums " +
-                          (net < 0 ? "text-red-500" : "text-[color:var(--muted)]")
-                        }
-                      >
-                        {net >= 0 ? "+" : ""}
-                        {formatAmount(net, locale, userCurrency)}
-                      </span>
-                      <span className="w-24 text-right font-mono tabular-nums">
-                        {formatAmount(m.spend, locale, userCurrency)}
-                      </span>
+                    <div className="mt-2 h-[7px] rounded-full bg-[color:var(--chip)]">
+                      <div
+                        className="h-[7px] rounded-full bg-[color:var(--ink-bar)]"
+                        style={{
+                          width: `${Math.min(100, (m.spend / Math.max(1, maxPeriod)) * 100)}%`,
+                        }}
+                      />
                     </div>
                   </Link>
                 </li>
@@ -509,27 +510,33 @@ export async function ChartsView({
             })}
           </ul>
         )}
+
+        {historyRows.length > 0 && (
+          <div className="mt-5 text-xs text-[color:var(--muted)]">
+            {t(locale, "avg")} {formatAmount(avgPastSpend, locale, userCurrency)}{t(locale, "perPeriod")}
+          </div>
+        )}
       </section>
 
       {/* Per-period trend chart */}
-      <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 sm:p-6">
+      <section className="flex flex-col rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 sm:px-7">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            {t(locale, "trend")} {"·"} {t(locale, "lastNPeriods", { n: PERIODS_OF_HISTORY })}
+          <div className="text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
+            {t(locale, "trend")}
           </div>
-          <div className="flex items-center gap-3 text-xs text-[color:var(--muted)]">
+          <div className="flex items-center gap-3 text-[11px] text-[color:var(--muted)]">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[color:var(--foreground)]/70" />
+              <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ink-bar)]" />
               {t(locale, "spend")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500/70" />
+              <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--accent-bar)]" />
               {t(locale, "income")}
             </span>
           </div>
         </div>
 
-        <div className="flex h-48 items-stretch gap-0.5 sm:gap-2">
+        <div className="flex min-h-48 flex-1 items-stretch gap-0.5 sm:gap-2">
           {trendRows.map((m) => {
             const spendH = (m.spend / maxPeriod) * 100;
             const incomeH = (m.income / maxPeriod) * 100;
@@ -550,11 +557,11 @@ export async function ChartsView({
                 <div className="relative w-full flex-1">
                   <div className="absolute inset-0 flex items-end justify-center gap-0.5 sm:gap-1">
                     <div
-                      className="w-1/3 rounded-sm bg-[color:var(--foreground)]/70 transition group-hover:bg-[color:var(--foreground)]"
+                      className="w-1/3 rounded-t bg-[color:var(--ink-bar)] transition group-hover:bg-[color:var(--foreground)]"
                       style={{ height: `${Math.max(spendH, 1)}%` }}
                     />
                     <div
-                      className="w-1/3 rounded-sm bg-emerald-500/70 transition group-hover:bg-emerald-500"
+                      className="w-1/3 rounded-t bg-[color:var(--accent-bar)] transition group-hover:bg-[color:var(--accent)]"
                       style={{ height: `${Math.max(incomeH, 1)}%` }}
                     />
                   </div>
@@ -571,22 +578,8 @@ export async function ChartsView({
             );
           })}
         </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-[color:var(--border)] pt-4 text-xs">
-          <div>
-            <div className="text-[color:var(--muted)]">{t(locale, "avgSpendPerPeriod")}</div>
-            <div className="mt-0.5 font-mono tabular-nums">
-              {formatAmount(avgPastSpend, locale, userCurrency)}
-            </div>
-          </div>
-          <div>
-            <div className="text-[color:var(--muted)]">{t(locale, "avgIncomePerPeriod")}</div>
-            <div className="mt-0.5 font-mono tabular-nums">
-              {formatAmount(avgPeriodIncome, locale, userCurrency)}
-            </div>
-          </div>
-        </div>
       </section>
+      </div>
 
       <p className="mt-6 text-center text-xs text-[color:var(--muted)]">
         {t(locale, "historyNote")}

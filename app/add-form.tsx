@@ -33,7 +33,7 @@ export function AddTransactionForm({ action, categories, locale, labels }: Props
             ?.focus();
         })
       }
-      className="rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] p-2 focus-within:border-[color:var(--foreground)]/30"
+      className="mt-3.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-2.5 focus-within:border-[color:var(--accent-bar)]/50"
     >
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -73,8 +73,8 @@ export function AddTransactionForm({ action, categories, locale, labels }: Props
               className={
                 "rounded-md px-2 py-1 text-xs transition " +
                 (active
-                  ? "bg-[color:var(--foreground)] text-[color:var(--background)]"
-                  : "text-[color:var(--muted)] hover:bg-[color:var(--surface)]")
+                  ? "bg-[color:var(--accent)] text-white"
+                  : "text-[color:var(--muted)] hover:bg-[color:var(--chip)]")
               }
             >
               <span className="mr-1">{c.emoji}</span>

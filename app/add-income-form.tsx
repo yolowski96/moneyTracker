@@ -24,7 +24,7 @@ export function AddIncomeForm({ action, currencySymbol, labels }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-dashed border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted)] transition hover:border-[color:var(--foreground)]/30 hover:text-[color:var(--foreground)]"
+        className="text-xs font-semibold text-[color:var(--accent)] transition hover:opacity-80"
       >
         {`+ ${labels.addExtraIncome}`}
       </button>

@@ -199,75 +199,77 @@ export default async function GoalsPage() {
       />
 
       {activeGoal && progress ? (
-        <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="min-w-0 truncate text-lg font-medium">
-              <span aria-hidden className="mr-2">{activeGoal.emoji}</span>
-              {activeGoal.name}
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-7">
+          <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:gap-7">
+            <div
+              aria-hidden
+              className="flex h-[118px] w-[118px] flex-none items-center justify-center rounded-full"
+              style={{
+                background: `conic-gradient(var(--accent-bar) 0 ${Math.min(100, Math.max(0, progress.pct))}%, var(--chip) ${Math.min(100, Math.max(0, progress.pct))}% 100%)`,
+              }}
+            >
+              <div className="flex h-[92px] w-[92px] flex-col items-center justify-center rounded-full bg-[color:var(--surface)]">
+                <div className="font-mono text-[22px] font-semibold tabular-nums text-[color:var(--accent)]">
+                  {progress.pct}%
+                </div>
+                <div className="text-[10px] text-[color:var(--muted)]">
+                  {t(locale, "doneLabel")}
+                </div>
+              </div>
             </div>
-            <div className="shrink-0 text-xs text-[color:var(--muted)]">
-              {t(locale, "sinceStart", {
-                date: formatDateShort(activeGoal.startCycle, locale),
-              })}
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-baseline justify-between gap-3">
-            <div>
-              <div className="text-xs text-[color:var(--muted)]">
-                {t(locale, "savedLabel")}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0 truncate text-[17px] font-bold">
+                  <span aria-hidden className="mr-1.5">{activeGoal.emoji}</span>
+                  {activeGoal.name}
+                </div>
+                <div className="shrink-0 text-[11.5px] text-[color:var(--muted)]">
+                  {t(locale, "sinceStart", {
+                    date: formatDateShort(activeGoal.startCycle, locale),
+                  })}
+                </div>
               </div>
               <div
                 className={
-                  "text-4xl font-medium tabular-nums " +
-                  (progress.saved < 0 ? "text-red-500" : "")
+                  "mt-1 font-mono text-3xl font-semibold tabular-nums " +
+                  (progress.saved < 0 ? "text-[color:var(--danger)]" : "")
                 }
               >
                 {formatAmount(progress.saved, locale, userCurrency)}
               </div>
-            </div>
-            <div className="font-mono text-sm tabular-nums text-[color:var(--muted)]">
-              {formatAmountWhole(Math.max(0, progress.saved), locale, userCurrency)}
-              {" / "}
-              {formatAmountWhole(activeGoal.targetAmount, locale, userCurrency)}
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <div className="h-2 overflow-hidden rounded-full bg-[color:var(--border)]">
-              <div
-                className={
-                  "h-full transition-all " +
-                  (progress.achieved
-                    ? "bg-emerald-500"
-                    : "bg-[color:var(--foreground)]/70")
-                }
-                style={{ width: `${progress.pct}%` }}
-              />
-            </div>
-            <div className="mt-2 flex justify-between gap-3 text-xs text-[color:var(--muted)]">
-              <span>{progress.pct}%</span>
-              <span className="text-right">
-                {progress.achieved
-                  ? null
-                  : progress.etaDate
-                    ? t(locale, "etaAtPace", {
-                        when: formatMonthYear(progress.etaDate, locale),
-                      })
-                    : t(locale, "etaUnknown")}
-              </span>
-            </div>
-            <div className="mt-1 text-xs text-[color:var(--muted)]">
-              {t(locale, "thisCycleSoFar", {
-                amount:
-                  (progress.currentCycleDelta >= 0 ? "+" : "") +
-                  formatAmount(progress.currentCycleDelta, locale, userCurrency),
-              })}
+              <div className="mt-1 text-[12.5px] text-[color:var(--muted)]">
+                {t(locale, "goalOfRemaining", {
+                  target: formatAmountWhole(activeGoal.targetAmount, locale, userCurrency),
+                  left: formatAmount(
+                    Math.max(0, activeGoal.targetAmount - progress.saved),
+                    locale,
+                    userCurrency,
+                  ),
+                })}
+              </div>
+              <div className="mt-3.5 flex flex-wrap gap-2">
+                {!progress.achieved && (
+                  <div className="rounded-full bg-[color:var(--accent-soft)] px-2.5 py-1 text-[11.5px] font-semibold text-[color:var(--accent)]">
+                    {progress.etaDate
+                      ? t(locale, "etaAtPace", {
+                          when: formatMonthYear(progress.etaDate, locale),
+                        })
+                      : t(locale, "etaUnknown")}
+                  </div>
+                )}
+                <div className="rounded-full bg-[color:var(--chip)] px-2.5 py-1 text-[11.5px] text-[color:var(--foreground)]/70">
+                  {t(locale, "thisPeriodPill", {
+                    amount:
+                      (progress.currentCycleDelta >= 0 ? "+" : "") +
+                      formatAmount(progress.currentCycleDelta, locale, userCurrency),
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
           {progress.achieved ? (
-            <div className="mt-5 flex items-center justify-between gap-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-3">
+            <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-[color:var(--accent-bar)]/40 bg-[color:var(--accent-soft)] px-4 py-3">
               <div className="text-sm font-medium">
                 {"\u{1F389}"} {t(locale, "goalAchieved")}
               </div>
@@ -275,16 +277,16 @@ export default async function GoalsPage() {
                 <input type="hidden" name="id" value={activeGoal.id} />
                 <button
                   type="submit"
-                  className="rounded-md bg-[color:var(--foreground)] px-3 py-1.5 text-xs font-medium text-[color:var(--background)]"
+                  className="rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-white"
                 >
                   {t(locale, "startNewGoal")}
                 </button>
               </form>
             </div>
           ) : (
-            <div className="mt-5 flex items-center justify-between border-t border-[color:var(--border)] pt-4">
+            <div className="mt-6 flex items-center justify-between border-t border-[color:var(--border-soft,var(--border))] pt-4">
               <details className="group min-w-0 flex-1">
-                <summary className="cursor-pointer list-none text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]">
+                <summary className="cursor-pointer list-none text-[12.5px] font-semibold text-[color:var(--accent)] hover:opacity-80">
                   {t(locale, "edit")}
                 </summary>
                 <form action={updateGoal} className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -333,7 +335,7 @@ export default async function GoalsPage() {
                 <input type="hidden" name="id" value={activeGoal.id} />
                 <button
                   type="submit"
-                  className="text-xs text-[color:var(--muted)] hover:text-red-500"
+                  className="text-[12.5px] text-[color:var(--muted)] hover:text-[color:var(--danger)]"
                 >
                   {t(locale, "archive")}
                 </button>
@@ -342,8 +344,8 @@ export default async function GoalsPage() {
           )}
         </section>
       ) : (
-        <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6">
-          <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 sm:p-7">
+          <div className="text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
             {t(locale, "newGoal")}
           </div>
           <p className="mt-2 text-sm text-[color:var(--muted)]">
@@ -391,12 +393,12 @@ export default async function GoalsPage() {
         </section>
       )}
 
-      <section className="mt-12">
-        <div className="mb-2 border-b border-[color:var(--border)] pb-2 text-xs uppercase tracking-widest text-[color:var(--muted)]">
+      <section className="mt-8">
+        <div className="mb-3 text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
           {t(locale, "archivedGoals")}
         </div>
         {archivedGoals.length === 0 ? (
-          <div className="py-3 text-sm text-[color:var(--muted)]">
+          <div className="rounded-2xl border border-dashed border-[color:var(--border)] px-6 py-6 text-center text-[12.5px] text-[color:var(--muted)]">
             {t(locale, "noArchivedGoals")}
           </div>
         ) : (
@@ -420,14 +422,14 @@ export default async function GoalsPage() {
                       {formatAmount(g.targetAmount, locale, userCurrency)}
                     </span>
                     {g.achievedAt ? (
-                      <span aria-hidden className="text-emerald-500">{"✓"}</span>
+                      <span aria-hidden className="text-[color:var(--accent)]">{"✓"}</span>
                     ) : null}
                     <form action={deleteGoal}>
                       <input type="hidden" name="id" value={g.id} />
                       <button
                         type="submit"
                         aria-label={t(locale, "delete")}
-                        className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
+                        className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--danger)] sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         &times;
                       </button>

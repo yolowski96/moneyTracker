@@ -5,7 +5,7 @@ import { formatAmount, bcp47 } from "@/lib/format";
 import { t, categoryLabel, type Locale } from "@/lib/i18n";
 import { deleteTransaction } from "./actions";
 
-const DAYS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 6;
 
 function groupByDay<T extends { occurredAt: Date }>(items: T[]) {
   const map = new Map<string, T[]>();
@@ -33,8 +33,10 @@ function formatDayLabel(iso: string, locale: Locale) {
   });
 }
 
-// Recent transactions grouped by day, paginated DAYS_PER_PAGE days at a time
-// via the ?p= query param (clamped here, so any garbage falls back to page 1).
+// Recent transactions grouped by day, paginated ITEMS_PER_PAGE rows at a time
+// (keeps the card roughly the height of the categories card next to it) via the
+// ?p= query param (clamped here, so any garbage falls back to page 1). Day
+// headers always show the full day total even when the day spans two pages.
 export function TransactionList({
   locale,
   currency,
@@ -48,47 +50,57 @@ export function TransactionList({
   requestedPage: number;
   categoryById: Map<string, Category>;
 }) {
-  const grouped = groupByDay(transactions);
-  const totalPages = Math.max(1, Math.ceil(grouped.length / DAYS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(transactions.length / ITEMS_PER_PAGE));
   const page = Number.isFinite(requestedPage)
     ? Math.min(Math.max(requestedPage, 1), totalPages)
     : 1;
-  const pageDays = grouped.slice(
-    (page - 1) * DAYS_PER_PAGE,
-    page * DAYS_PER_PAGE,
+  const pageItems = transactions.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
+  const pageDays = groupByDay(pageItems);
+  const fullDayTotals = new Map(
+    groupByDay(transactions).map(([day, items]) => [
+      day,
+      items.reduce((sum, tx) => sum + tx.amount, 0),
+    ]),
   );
 
   return (
-    <section className="mt-12 space-y-8">
-      {grouped.length === 0 && (
-        <div className="text-sm text-[color:var(--muted)]">
-          {t(locale, "noTransactionsYet")}{" "}
-          <code className="font-mono text-xs">/api/transactions</code>.
-        </div>
-      )}
-      {pageDays.map(([day, items]) => {
-        const dayTotal = items.reduce((sum, tx) => sum + tx.amount, 0);
+    <section className="flex flex-col rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-5 sm:px-7">
+      <div className="text-[11px] uppercase tracking-widest text-[color:var(--muted)]">
+        {t(locale, "recentTransactions")}
+      </div>
+      <div className="flex-1">
+        {transactions.length === 0 && (
+          <div className="py-4 text-sm text-[color:var(--muted)]">
+            {t(locale, "noTransactionsYet")}{" "}
+            <code className="font-mono text-xs">/api/transactions</code>.
+          </div>
+        )}
+        {pageDays.map(([day, items]) => {
+        const dayTotal = fullDayTotals.get(day) ?? 0;
         return (
           <div key={day}>
-            <div className="mb-2 flex items-baseline justify-between border-b border-[color:var(--border)] pb-2">
-              <div className="text-xs uppercase tracking-widest text-[color:var(--muted)]">
+            <div className="flex items-baseline justify-between border-b border-[color:var(--border-soft,var(--border))] pb-2 pt-4">
+              <div className="text-[11px] uppercase tracking-wider text-[color:var(--muted-soft,var(--muted))]">
                 {formatDayLabel(day, locale)}
               </div>
               <div className="font-mono text-xs tabular-nums text-[color:var(--muted)]">
                 {formatAmount(dayTotal, locale, currency)}
               </div>
             </div>
-            <ul className="divide-y divide-[color:var(--border)]">
+            <ul className="divide-y divide-[color:var(--border-soft,var(--border))]">
               {items.map((tx) => {
                 const cat = tx.category ? categoryById.get(tx.category) ?? null : null;
                 return (
                   <li
                     key={tx.id}
-                    className="group flex items-center justify-between py-3"
+                    className="group flex items-center justify-between py-2.5"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
                       <span
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[color:var(--surface)] text-base"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--chip)] text-sm"
                         aria-hidden
                       >
                         {cat?.emoji ?? "\u{1F4B6}"}
@@ -118,7 +130,7 @@ export function TransactionList({
                         <button
                           type="submit"
                           aria-label={t(locale, "delete")}
-                          className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
+                          className="p-1 -m-1 text-[color:var(--muted)] transition hover:text-[color:var(--danger)] sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           &times;
                         </button>
@@ -131,33 +143,40 @@ export function TransactionList({
           </div>
         );
       })}
+      </div>
 
       {totalPages > 1 && (
-        <nav className="flex items-center justify-between border-t border-[color:var(--border)] pt-4">
+        <nav className="mt-1 flex items-center justify-between border-t border-[color:var(--border-soft,var(--border))] pt-4">
           {page > 1 ? (
             <Link
               href={`/?p=${page - 1}`}
               prefetch={false}
+              scroll={false}
               className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             >
-              {"←"} {t(locale, "newer")}
+              {"←"} {t(locale, "prevPage")}
             </Link>
           ) : (
-            <span />
+            <span className="text-sm text-[color:var(--muted-soft,var(--muted))]">
+              {"←"} {t(locale, "prevPage")}
+            </span>
           )}
-          <span className="text-xs tabular-nums text-[color:var(--muted)]">
+          <span className="text-sm tabular-nums text-[color:var(--muted)]">
             {t(locale, "pageOf", { n: page, total: totalPages })}
           </span>
           {page < totalPages ? (
             <Link
               href={`/?p=${page + 1}`}
               prefetch={false}
-              className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              scroll={false}
+              className="text-sm font-semibold text-[color:var(--accent)] hover:opacity-80"
             >
-              {t(locale, "older")} {"→"}
+              {t(locale, "nextPage")} {"→"}
             </Link>
           ) : (
-            <span />
+            <span className="text-sm text-[color:var(--muted-soft,var(--muted))]">
+              {t(locale, "nextPage")} {"→"}
+            </span>
           )}
         </nav>
       )}

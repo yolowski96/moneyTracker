@@ -53,8 +53,8 @@ function formatQty(n: number, locale: Locale): string {
 }
 
 function plClass(cents: number): string {
-  if (cents > 0) return "text-emerald-500";
-  if (cents < 0) return "text-red-500";
+  if (cents > 0) return "text-[color:var(--accent)]";
+  if (cents < 0) return "text-[color:var(--danger)]";
   return "text-[color:var(--muted)]";
 }
 

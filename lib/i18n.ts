@@ -21,6 +21,7 @@ const STRINGS = {
     // Header / nav
     appName: "Bankopolis",
     tagline: "A minimal money tracker.",
+    home: "Home",
     inbox: "Inbox",
     charts: "Charts",
     settings: "Settings",
@@ -53,6 +54,17 @@ const STRINGS = {
     extraIncomeThis: "Extra income this",
     extraIncome: "Extra income",
     noTransactionsYet: "No transactions yet. Add one above, or POST to",
+    underPlan: "under plan",
+    overPlan: "over plan",
+    perDayLabel: "Per day",
+    todayLower: "today",
+    daysLeft: "{n} days left",
+    totalLabel: "total",
+    recentTransactions: "Recent transactions",
+    viewAll: "view all",
+    categorySpend: "Spending by category",
+    prevPage: "Previous",
+    nextPage: "Next",
 
     // Add forms
     amountPlaceholder: "Amount",
@@ -82,6 +94,7 @@ const STRINGS = {
     history: "History",
     lastNMonths: "last {n} months",
     lastNPeriods: "last {n} periods",
+    lastPeriods: "recent periods",
     noPriorMonths: "No prior months recorded yet.",
     trend: "Trend",
     spend: "Spend",
@@ -190,6 +203,9 @@ const STRINGS = {
     etaUnknown: "Not enough history for a projection yet.",
     goalAchieved: "Goal achieved!",
     startNewGoal: "Start a new goal",
+    doneLabel: "done",
+    goalOfRemaining: "of {target} · {left} to go",
+    thisPeriodPill: "this period: {amount}",
     archivedGoals: "Past goals",
     achievedBadge: "Achieved",
     abandonedBadge: "Abandoned",
@@ -215,7 +231,7 @@ const STRINGS = {
     // Pagination
     newer: "Newer",
     older: "Older",
-    pageOf: "Page {n} / {total}",
+    pageOf: "p. {n} of {total}",
 
     // Portfolio
     portfolio: "Portfolio",
@@ -257,11 +273,16 @@ const STRINGS = {
     portfolioApiUrlPlaceholder: "https://example.com/positions",
     urlConfigured: "URL configured",
     noUrlYet: "No URL yet",
+    integrations: "Integrations",
+    configured: "set up",
+    apiAccessSub: "for automatic transaction imports",
+    portfolioApiSub: "URL for market data",
   },
   bg: {
     // Header / nav
     appName: "Bankopolis",
     tagline: "Минималистичен тракер за пари.",
+    home: "Начало",
     inbox: "Входящи",
     charts: "Графики",
     settings: "Настройки",
@@ -294,6 +315,17 @@ const STRINGS = {
     extraIncomeThis: "Допълнителен доход този",
     extraIncome: "Допълнителен доход",
     noTransactionsYet: "Няма транзакции. Добави горе или POST към",
+    underPlan: "под плана",
+    overPlan: "над плана",
+    perDayLabel: "На ден",
+    todayLower: "днес",
+    daysLeft: "още {n} дни",
+    totalLabel: "общо",
+    recentTransactions: "Последни транзакции",
+    viewAll: "виж всички",
+    categorySpend: "Разходи по категория",
+    prevPage: "Предишна",
+    nextPage: "Следваща",
 
     // Add forms
     amountPlaceholder: "Сума",
@@ -323,6 +355,7 @@ const STRINGS = {
     history: "История",
     lastNMonths: "последни {n} месеца",
     lastNPeriods: "последни {n} периода",
+    lastPeriods: "последни периоди",
     noPriorMonths: "Няма записани минали месеци.",
     trend: "Тенденция",
     spend: "Разход",
@@ -431,6 +464,9 @@ const STRINGS = {
     etaUnknown: "Още няма достатъчно история за прогноза.",
     goalAchieved: "Целта е постигната!",
     startNewGoal: "Започни нова цел",
+    doneLabel: "готово",
+    goalOfRemaining: "от {target} · остават {left}",
+    thisPeriodPill: "този период: {amount}",
     archivedGoals: "Минали цели",
     achievedBadge: "Постигната",
     abandonedBadge: "Изоставена",
@@ -456,7 +492,7 @@ const STRINGS = {
     // Pagination
     newer: "По-нови",
     older: "По-стари",
-    pageOf: "Стр. {n} / {total}",
+    pageOf: "стр. {n} от {total}",
 
     // Portfolio
     portfolio: "Портфолио",
@@ -498,6 +534,10 @@ const STRINGS = {
     portfolioApiUrlPlaceholder: "https://example.com/positions",
     urlConfigured: "URL е настроен",
     noUrlYet: "Няма URL",
+    integrations: "Интеграции",
+    configured: "настроен",
+    apiAccessSub: "за автоматично внасяне на транзакции",
+    portfolioApiSub: "URL за пазарни данни",
   },
 } as const;
 
