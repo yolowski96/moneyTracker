@@ -54,7 +54,7 @@ export function CycleSummary({
           {totalIncome > 0 && (
             <div
               className={
-                "rounded-full px-2.5 py-1 text-[11px] font-semibold " +
+                "shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold " +
                 (over
                   ? "bg-red-500/10 text-[color:var(--danger)]"
                   : underPlan

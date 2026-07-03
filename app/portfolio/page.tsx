@@ -411,25 +411,36 @@ export default async function PortfolioPage() {
                   key={p.ticker}
                   className="rounded-md border border-[color:var(--border)] p-3"
                 >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="font-medium">{p.ticker}</span>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <span className="shrink-0 font-medium">{p.ticker}</span>
                       {p.name !== p.ticker && (
-                        <span className="ml-2 text-xs text-[color:var(--muted)]">{p.name}</span>
+                        <span className="min-w-0 truncate text-xs text-[color:var(--muted)]">
+                          {p.name}
+                        </span>
                       )}
                     </div>
-                    <div className="font-mono text-sm tabular-nums">
+                    <div className="shrink-0 font-mono text-sm tabular-nums">
                       {formatAmount(p.valueCents, locale, userCurrency)}
                     </div>
                   </div>
-                  <div className="mt-1 flex items-baseline justify-between gap-2 text-xs text-[color:var(--muted)]">
-                    <span className="font-mono tabular-nums">
-                      {formatQty(p.quantity, locale)} × {formatAmount(p.currentPriceCents, locale, userCurrency)}
+                  <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[color:var(--muted)]">
+                    <span className="min-w-0 font-mono tabular-nums">
+                      {formatQty(p.quantity, locale)} {"×"}{" "}
+                      {formatAmount(p.currentPriceCents, locale, userCurrency)}
                     </span>
-                    <span className={"font-mono tabular-nums " + plClass(p.plCents)}>
+                    <span
+                      className={
+                        "shrink-0 text-right font-mono tabular-nums " +
+                        plClass(p.plCents)
+                      }
+                    >
                       {signed(p.plCents, locale, userCurrency)}
-                      {p.plPct !== null &&
-                        ` (${(p.plPct >= 0 ? "+" : "") + p.plPct.toFixed(1)}%)`}
+                      {p.plPct !== null && (
+                        <span className="block text-[10px]">
+                          {(p.plPct >= 0 ? "+" : "") + p.plPct.toFixed(1)}%
+                        </span>
+                      )}
                     </span>
                   </div>
                 </li>
