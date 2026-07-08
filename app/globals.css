@@ -57,10 +57,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Keep page content clear of the fixed mobile bottom nav */
+/* Keep page content clear of the floating mobile bottom nav */
 @media (max-width: 39.99rem) {
   body:has([data-bottom-nav]) {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 }
 

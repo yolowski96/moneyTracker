@@ -52,9 +52,9 @@ export function BottomNav({
     <nav
       data-bottom-nav
       aria-label={t(locale, "menu")}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--border)] bg-[color:var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
+      className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto max-w-md rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)]/95 shadow-lg shadow-black/10 backdrop-blur sm:hidden"
     >
-      <div className="mx-auto grid max-w-md grid-cols-5">
+      <div className="grid grid-cols-5 px-1">
         {items.map((it) => {
           const active = it.page === current;
           const inner = (
@@ -78,7 +78,7 @@ export function BottomNav({
             </>
           );
           const cls =
-            "flex flex-col items-center gap-1 py-2.5 " +
+            "flex flex-col items-center gap-1 py-3 " +
             (active
               ? "text-[color:var(--accent)]"
               : "text-[color:var(--muted)] transition hover:text-[color:var(--foreground)]");
