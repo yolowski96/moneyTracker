@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { t, type Locale } from "@/lib/i18n";
 import { DEMO_EMAIL } from "@/lib/demo";
-import { MobileMenu } from "./mobile-menu";
+import { BottomNav } from "./bottom-nav";
 import { InboxBell } from "./inbox-bell";
 import { ThemeToggle } from "./theme-toggle";
 import { LogoutIcon } from "./logout-icon";
@@ -23,9 +23,10 @@ const NAV = [
   { page: "settings" as const, href: "/settings" },
 ];
 
-// Shared page header: mobile bar (menu / centered app name / bell + theme)
-// plus the desktop title row with nav links. The current page is omitted
-// from both nav lists; the inbox hides its own bell.
+// Shared page header: mobile bar (app name / bell + theme + sign out) with a
+// fixed bottom tab bar for navigation, plus the desktop title row with nav
+// links. The current page is omitted from the desktop list; the inbox hides
+// its own bell.
 export function AppHeader({
   current,
   locale,
@@ -51,22 +52,11 @@ export function AppHeader({
     </span>
   );
   const showBell = current !== "inbox";
-  const menuItems = NAV.filter((n) => n.page !== current).map((n) => ({
-    href: n.href,
-    label: t(locale, n.page),
-  }));
 
   return (
     <header className={isHome ? "mb-10 sm:mb-12" : "mb-10"}>
       <div className="flex items-center justify-between gap-3 sm:hidden">
-        <MobileMenu
-          ariaLabel={t(locale, "menu")}
-          title={t(locale, "appName")}
-          userEmail={userEmail}
-          signOutLabel={t(locale, "signOut")}
-          items={menuItems}
-        />
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 text-base font-semibold tracking-tight">
+        <div className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight">
           {t(locale, "appName")}
           {isDemo && demoChip}
         </div>
@@ -75,8 +65,10 @@ export function AppHeader({
             <InboxBell count={pendingCount} ariaLabel={t(locale, "inbox")} />
           )}
           <ThemeToggle />
+          <LogoutIcon ariaLabel={t(locale, "signOut")} />
         </div>
       </div>
+      <BottomNav current={current} locale={locale} items={NAV} />
       <div
         className={
           "mt-6 sm:mt-0 sm:flex sm:justify-between sm:gap-4 " +

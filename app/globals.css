@@ -57,6 +57,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Keep page content clear of the fixed mobile bottom nav */
+@media (max-width: 39.99rem) {
+  body:has([data-bottom-nav]) {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 html {
   color-scheme: light;
 }
