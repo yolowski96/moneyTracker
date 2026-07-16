@@ -277,6 +277,22 @@ const STRINGS = {
     configured: "set up",
     apiAccessSub: "for automatic transaction imports",
     portfolioApiSub: "URL for market data",
+
+    // Push notifications
+    pushTitle: "Notifications",
+    pushSub: "Push alerts for new inbox items",
+    pushDescribe:
+      "Get a notification on this device when a new transaction lands in your inbox.",
+    pushEnable: "Enable on this device",
+    pushDisable: "Disable",
+    pushWorking: "Working",
+    pushEnabled: "Enabled on this device",
+    pushDisabled: "Off on this device",
+    pushUnsupported:
+      "Not supported in this browser. On iPhone/iPad: add the app to your Home Screen first, then enable it from there.",
+    pushDenied:
+      "Notifications are blocked for this app. Allow them in system settings, then try again.",
+    pushNewTransactionTitle: "New transaction",
   },
   bg: {
     // Header / nav
@@ -538,6 +554,22 @@ const STRINGS = {
     configured: "настроен",
     apiAccessSub: "за автоматично внасяне на транзакции",
     portfolioApiSub: "URL за пазарни данни",
+
+    // Push notifications
+    pushTitle: "Известия",
+    pushSub: "Push известия за нови inbox записи",
+    pushDescribe:
+      "Получавай известие на това устройство, когато нова транзакция влезе в inbox.",
+    pushEnable: "Включи на това устройство",
+    pushDisable: "Изключи",
+    pushWorking: "Момент",
+    pushEnabled: "Включено на това устройство",
+    pushDisabled: "Изключено на това устройство",
+    pushUnsupported:
+      "Не се поддържа в този браузър. На iPhone/iPad: първо добави приложението на началния екран и включи оттам.",
+    pushDenied:
+      "Известията са блокирани за това приложение. Разреши ги в настройките на системата и опитай пак.",
+    pushNewTransactionTitle: "Нова транзакция",
   },
 } as const;
 

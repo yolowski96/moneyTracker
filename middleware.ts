@@ -27,6 +27,11 @@ export default auth((req) => {
   return NextResponse.next();
 });
 
+// PWA assets must stay reachable without a session: the browser fetches the
+// manifest without cookies, and the service worker + icons are requested
+// before/independent of login. An auth redirect here breaks installability.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|icon\\.png|apple-icon\\.png|icon-192\\.png|icon-512\\.png|icon-maskable-512\\.png).*)",
+  ],
 };

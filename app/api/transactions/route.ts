@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { authUserIdFromBearer } from "@/lib/auth";
@@ -6,6 +6,9 @@ import { toCents } from "@/lib/money";
 import { userTxnTag } from "@/lib/cache-tags";
 import { log } from "@/lib/log";
 import { getSettings } from "@/lib/cycle";
+import { sendPushToUser } from "@/lib/push";
+import { isLocale, t } from "@/lib/i18n";
+import { formatAmount } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -152,6 +155,18 @@ export async function POST(req: NextRequest) {
     });
 
     revalidateTag(userTxnTag(userId), "max");
+
+    // Only uncategorized rows land in the inbox — push for exactly those.
+    if (transaction.category === null) {
+      const locale = isLocale(settings.locale) ? settings.locale : "en";
+      const payload = {
+        title: t(locale, "pushNewTransactionTitle"),
+        body: `${merchantStr} — ${formatAmount(cents, locale, transaction.currency)}`,
+        url: "/inbox",
+      };
+      after(() => sendPushToUser(userId, payload));
+    }
+
     log(SCOPE_POST, 201, "created", `transaction ${transaction.id}`, {
       id: transaction.id,
       userId,

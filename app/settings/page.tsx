@@ -36,6 +36,8 @@ import { t, isLocale, isCurrency, LOCALES, CURRENCIES } from "@/lib/i18n";
 import { currencySymbol, parseAmount, formatAmountWhole } from "@/lib/format";
 import { SettingsForm } from "./form";
 import { ApiKeyCard } from "./api-key-card";
+import { NotificationsCard } from "./notifications-card";
+import { subscribePush, unsubscribePush } from "./push-actions";
 import { CategoriesCard } from "./categories-card";
 import { RecurringCard } from "./recurring-card";
 import { AppHeader } from "../app-header";
@@ -708,6 +710,48 @@ export default async function SettingsPage() {
                 {t(locale, "save")}
               </button>
             </form>
+          </div>
+        </details>
+
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 text-sm">
+            <span
+              aria-hidden
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--chip)] text-[15px]"
+            >
+              {"\u{1F514}"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
+                {t(locale, "pushTitle")}
+              </div>
+              <div className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
+                {t(locale, "pushSub")}
+              </div>
+            </div>
+            <span
+              aria-hidden
+              className="text-[color:var(--muted-soft,var(--muted))] transition-transform group-open:rotate-90"
+            >
+              {"›"}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t border-[color:var(--border-soft,var(--border))] px-5 py-4">
+            <NotificationsCard
+              vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
+              labels={{
+                describe: t(locale, "pushDescribe"),
+                enable: t(locale, "pushEnable"),
+                disable: t(locale, "pushDisable"),
+                working: t(locale, "pushWorking"),
+                enabled: t(locale, "pushEnabled"),
+                disabled: t(locale, "pushDisabled"),
+                unsupported: t(locale, "pushUnsupported"),
+                denied: t(locale, "pushDenied"),
+              }}
+              onSubscribe={subscribePush}
+              onUnsubscribe={unsubscribePush}
+            />
           </div>
         </details>
       </div>
